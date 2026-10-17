@@ -641,6 +641,10 @@ union rcu_special {
 	u32 s; /* Set of bits. */
 };
 
+#ifdef CONFIG_FIVE
+struct task_integrity;
+#endif
+
 enum perf_event_task_context {
 	perf_invalid_context = -1,
 	perf_hw_context = 0,
@@ -1342,6 +1346,9 @@ struct task_struct {
 #ifdef CONFIG_DEBUG_ATOMIC_SLEEP
 	unsigned long			task_state_change;
 #endif
+#ifdef CONFIG_FIVE
+	struct task_integrity		*integrity;
+#endif
 	int				pagefault_disabled;
 #ifdef CONFIG_MMU
 	struct task_struct		*oom_reaper_list;
@@ -1377,6 +1384,11 @@ struct task_struct {
 	int				mce_count;
 #endif
 	ANDROID_VENDOR_DATA_ARRAY(1, 64);
+	
+	/*
+	 * [0] : sec_debug_wait.type
+	 * [1] : sec_debug_wait.data
+	 */
 	ANDROID_OEM_DATA_ARRAY(1, 32);
 
 	/* PF_IO_WORKER */

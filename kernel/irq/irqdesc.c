@@ -16,6 +16,7 @@
 #include <linux/bitmap.h>
 #include <linux/irqdomain.h>
 #include <linux/sysfs.h>
+#include <trace/events/irq.h>
 
 #include "internals.h"
 
@@ -645,6 +646,7 @@ int generic_handle_irq(unsigned int irq)
 {
 	struct irq_desc *desc = irq_to_desc(irq);
 	struct irq_data *data;
+	struct irqaction *action;
 
 	if (!desc)
 		return -EINVAL;
@@ -653,7 +655,14 @@ int generic_handle_irq(unsigned int irq)
 	if (WARN_ON_ONCE(!in_irq() && handle_enforce_irqctx(data)))
 		return -EPERM;
 
-	generic_handle_irq_desc(desc);
+	action = desc->action;
+	if (!irq_desc_is_chained(desc)) {
+		generic_handle_irq_desc(desc);
+	} else {
+		trace_irq_handler_entry(irq, action);
+		generic_handle_irq_desc(desc);
+		trace_irq_handler_exit(irq, action, 1);
+	}
 	return 0;
 }
 EXPORT_SYMBOL_GPL(generic_handle_irq);

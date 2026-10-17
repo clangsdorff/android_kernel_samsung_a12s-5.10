@@ -53,8 +53,14 @@
 #include <net/netfilter/nf_nat_helper.h>
 #include <net/netns/hash.h>
 #include <net/ip.h>
+// SEC_PRODUCT_FEATURE_KNOX_SUPPORT_NPA {
+#ifdef CONFIG_KNOX_NCM
+#include <net/ncm.h>
+#endif
+// SEC_PRODUCT_FEATURE_KNOX_SUPPORT_NPA }
 
 #include "nf_internals.h"
+ #include <linux/time.h>
 
 __cacheline_aligned_in_smp spinlock_t nf_conntrack_locks[CONNTRACK_LOCKS];
 EXPORT_SYMBOL_GPL(nf_conntrack_locks);
@@ -497,6 +503,14 @@ static void nf_ct_add_to_dying_list(struct nf_conn *ct)
 {
 	struct ct_pcpu *pcpu;
 
+	// SEC_PRODUCT_FEATURE_KNOX_SUPPORT_NPA {
+#ifdef CONFIG_KNOX_NCM
+	if ( (check_ncm_flag()) && (ct != NULL) && (NF_CONN_NPA_VENDOR_DATA_GET(ct)) && (atomic_read(&NF_CONN_NPA_VENDOR_DATA_GET(ct)->startFlow)) ) {
+		knox_collect_conntrack_data(ct, NCM_FLOW_TYPE_CLOSE, 10);
+	}
+#endif
+	// SEC_PRODUCT_FEATURE_KNOX_SUPPORT_NPA }
+
 	/* add this conntrack to the (per cpu) dying list */
 	ct->cpu = smp_processor_id();
 	pcpu = per_cpu_ptr(nf_ct_net(ct)->ct.pcpu_lists, ct->cpu);
@@ -565,7 +579,7 @@ struct nf_conn *nf_ct_tmpl_alloc(struct net *net,
 	tmpl->status = IPS_TEMPLATE;
 	write_pnet(&tmpl->ct_net, net);
 	nf_ct_zone_add(tmpl, zone);
-	refcount_set(&tmpl->ct_general.use, 1);
+	atomic_set(&tmpl->ct_general.use, 0);
 
 	return tmpl;
 }
@@ -597,8 +611,16 @@ destroy_conntrack(struct nf_conntrack *nfct)
 {
 	struct nf_conn *ct = (struct nf_conn *)nfct;
 
+    // SEC_PRODUCT_FEATURE_KNOX_SUPPORT_NPA {
+#ifdef CONFIG_KNOX_NCM
+	if (NF_CONN_NPA_VENDOR_DATA_GET(ct)) {
+		kfree(NF_CONN_NPA_VENDOR_DATA_GET(ct));
+		ct->android_oem_data1 = (u64)NULL;
+	}
+#endif
+	// SEC_PRODUCT_FEATURE_KNOX_SUPPORT_NPA }
 	pr_debug("destroy_conntrack(%p)\n", ct);
-	WARN_ON(refcount_read(&nfct->use) != 0);
+	WARN_ON(atomic_read(&nfct->use) != 0);
 
 	if (unlikely(nf_ct_is_template(ct))) {
 		nf_ct_tmpl_free(ct);
@@ -717,11 +739,8 @@ nf_ct_match(const struct nf_conn *ct1, const struct nf_conn *ct2)
 /* caller must hold rcu readlock and none of the nf_conntrack_locks */
 static void nf_ct_gc_expired(struct nf_conn *ct)
 {
-	if (!refcount_inc_not_zero(&ct->ct_general.use))
+	if (!atomic_inc_not_zero(&ct->ct_general.use))
 		return;
-
-	/* load ->status after refcount increase */
-	smp_acquire__after_ctrl_dep();
 
 	if (nf_ct_should_gc(ct))
 		nf_ct_kill(ct);
@@ -788,10 +807,7 @@ __nf_conntrack_find_get(struct net *net, const struct nf_conntrack_zone *zone,
 		 * in, try to obtain a reference and re-check tuple
 		 */
 		ct = nf_ct_tuplehash_to_ctrack(h);
-		if (likely(refcount_inc_not_zero(&ct->ct_general.use))) {
-			/* re-check key after refcount */
-			smp_acquire__after_ctrl_dep();
-
+		if (likely(atomic_inc_not_zero(&ct->ct_general.use))) {
 			if (likely(nf_ct_key_equal(h, tuple, zone, net)))
 				goto found;
 
@@ -860,7 +876,7 @@ nf_conntrack_hash_check_insert(struct nf_conn *ct)
 
 	smp_wmb();
 	/* The caller holds a reference to this object */
-	refcount_set(&ct->ct_general.use, 2);
+	atomic_set(&ct->ct_general.use, 2);
 	__nf_conntrack_hash_insert(ct, hash, reply_hash);
 	nf_conntrack_double_unlock(hash, reply_hash);
 	NF_CT_STAT_INC(net, insert);
@@ -909,7 +925,7 @@ static void __nf_conntrack_insert_prepare(struct nf_conn *ct)
 {
 	struct nf_conn_tstamp *tstamp;
 
-	refcount_inc(&ct->ct_general.use);
+	atomic_inc(&ct->ct_general.use);
 	ct->status |= IPS_CONFIRMED;
 
 	/* set conntrack timestamp, if enabled. */
@@ -1288,11 +1304,8 @@ static unsigned int early_drop_list(struct net *net,
 		    nf_ct_is_dying(tmp))
 			continue;
 
-		if (!refcount_inc_not_zero(&tmp->ct_general.use))
+		if (!atomic_inc_not_zero(&tmp->ct_general.use))
 			continue;
-
-		/* load ->ct_net and ->status after refcount increase */
-		smp_acquire__after_ctrl_dep();
 
 		/* kill only if still in same netns -- might have moved due to
 		 * SLAB_TYPESAFE_BY_RCU rules.
@@ -1397,6 +1410,16 @@ static void gc_worker(struct work_struct *work)
 			if (nf_ct_is_expired(tmp)) {
 				nf_ct_gc_expired(tmp);
 				continue;
+			// SEC_PRODUCT_FEATURE_KNOX_SUPPORT_NPA {
+#ifdef CONFIG_KNOX_NCM
+			} else if ( (tmp != NULL) && (check_ncm_flag()) && (check_intermediate_flag()) && (NF_CONN_NPA_VENDOR_DATA_GET(tmp)) && (atomic_read(&NF_CONN_NPA_VENDOR_DATA_GET(tmp)->startFlow)) && (atomic_read(&NF_CONN_NPA_VENDOR_DATA_GET(tmp)->intermediateFlow)) ) {
+				s32 npa_timeout = NF_CONN_NPA_VENDOR_DATA_GET(tmp)->npa_timeout - ((u32)(jiffies));
+				if (npa_timeout <= 0) {
+					NF_CONN_NPA_VENDOR_DATA_GET(tmp)->npa_timeout = ((u32)(jiffies)) + (get_intermediate_timeout() * HZ);
+					knox_collect_conntrack_data(tmp, NCM_FLOW_TYPE_INTERMEDIATE, 20);
+			}
+#endif
+			// SEC_PRODUCT_FEATURE_KNOX_SUPPORT_NPA }
 			}
 
 			if (nf_conntrack_max95 == 0 || gc_worker_skip_ct(tmp))
@@ -1407,11 +1430,8 @@ static void gc_worker(struct work_struct *work)
 				continue;
 
 			/* need to take reference to avoid possible races */
-			if (!refcount_inc_not_zero(&tmp->ct_general.use))
+			if (!atomic_inc_not_zero(&tmp->ct_general.use))
 				continue;
-
-			/* load ->status after refcount increase */
-			smp_acquire__after_ctrl_dep();
 
 			if (gc_worker_skip_ct(tmp)) {
 				nf_ct_put(tmp);
@@ -1470,6 +1490,11 @@ __nf_conntrack_alloc(struct net *net,
 		     gfp_t gfp, u32 hash)
 {
 	struct nf_conn *ct;
+	// SEC_PRODUCT_FEATURE_KNOX_SUPPORT_NPA {
+#ifdef CONFIG_KNOX_NCM
+	struct timespec64 open_timespec;
+#endif
+	// SEC_PRODUCT_FEATURE_KNOX_SUPPORT_NPA }
 
 	/* We don't want any race condition at early drop stage */
 	atomic_inc(&net->ct.count);
@@ -1494,6 +1519,11 @@ __nf_conntrack_alloc(struct net *net,
 		goto out;
 
 	spin_lock_init(&ct->lock);
+	// SEC_PRODUCT_FEATURE_KNOX_SUPPORT_NPA {
+#ifdef CONFIG_KNOX_NCM
+	ct->android_oem_data1 = (u64)NULL;
+#endif
+	// SEC_PRODUCT_FEATURE_KNOX_SUPPORT_NPA }
 	ct->tuplehash[IP_CT_DIR_ORIGINAL].tuple = *orig;
 	ct->tuplehash[IP_CT_DIR_ORIGINAL].hnnode.pprev = NULL;
 	ct->tuplehash[IP_CT_DIR_REPLY].tuple = *repl;
@@ -1508,12 +1538,21 @@ __nf_conntrack_alloc(struct net *net,
 
 	nf_ct_zone_add(ct, zone);
 
+	// SEC_PRODUCT_FEATURE_KNOX_SUPPORT_NPA {
+#ifdef CONFIG_KNOX_NCM
+	ct->android_oem_data1 = (u64)kzalloc(sizeof(struct nf_conn_npa_vendor_data), gfp);
+	ktime_get_ts64(&open_timespec);
+	if (NF_CONN_NPA_VENDOR_DATA_GET(ct) != NULL){
+		NF_CONN_NPA_VENDOR_DATA_GET(ct)->open_time = open_timespec.tv_sec;
+	}
+#endif
+	// SEC_PRODUCT_FEATURE_KNOX_SUPPORT_NPA }
 	trace_android_rvh_nf_conn_alloc(ct);
 
 	/* Because we use RCU lookups, we set ct_general.use to zero before
 	 * this is inserted in any list.
 	 */
-	refcount_set(&ct->ct_general.use, 0);
+	atomic_set(&ct->ct_general.use, 0);
 	return ct;
 out:
 	atomic_dec(&net->ct.count);
@@ -1537,11 +1576,19 @@ void nf_conntrack_free(struct nf_conn *ct)
 	/* A freed object has refcnt == 0, that's
 	 * the golden rule for SLAB_TYPESAFE_BY_RCU
 	 */
-	WARN_ON(refcount_read(&ct->ct_general.use) != 0);
+	WARN_ON(atomic_read(&ct->ct_general.use) != 0);
 
 	nf_ct_ext_destroy(ct);
 	kmem_cache_free(nf_conntrack_cachep, ct);
 	smp_mb__before_atomic();
+	// SEC_PRODUCT_FEATURE_KNOX_SUPPORT_NPA {
+#ifdef CONFIG_KNOX_NCM
+	if (NF_CONN_NPA_VENDOR_DATA_GET(ct)) {
+		kfree(NF_CONN_NPA_VENDOR_DATA_GET(ct));
+		ct->android_oem_data1 = (u64)NULL;
+	}
+#endif
+	// SEC_PRODUCT_FEATURE_KNOX_SUPPORT_NPA }
 	trace_android_rvh_nf_conn_free(ct);
 	atomic_dec(&net->ct.count);
 }
@@ -1626,18 +1673,8 @@ init_conntrack(struct net *net, struct nf_conn *tmpl,
 	if (!exp)
 		__nf_ct_try_assign_helper(ct, tmpl, GFP_ATOMIC);
 
-	/* Other CPU might have obtained a pointer to this object before it was
-	 * released.  Because refcount is 0, refcount_inc_not_zero() will fail.
-	 *
-	 * After refcount_set(1) it will succeed; ensure that zeroing of
-	 * ct->status and the correct ct->net pointer are visible; else other
-	 * core might observe CONFIRMED bit which means the entry is valid and
-	 * in the hash table, but its not (anymore).
-	 */
-	smp_wmb();
-
-	/* Now it is inserted into the unconfirmed list, set refcount to 1. */
-	refcount_set(&ct->ct_general.use, 1);
+	/* Now it is inserted into the unconfirmed list, bump refcount */
+	nf_conntrack_get(&ct->ct_general);
 	nf_ct_add_to_unconfirmed_list(ct);
 
 	local_bh_enable();
@@ -2240,7 +2277,7 @@ get_next_corpse(int (*iter)(struct nf_conn *i, void *data),
 
 	return NULL;
 found:
-	refcount_inc(&ct->ct_general.use);
+	atomic_inc(&ct->ct_general.use);
 	spin_unlock(lockp);
 	local_bh_enable();
 	return ct;

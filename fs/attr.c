@@ -17,6 +17,7 @@
 #include <linux/security.h>
 #include <linux/evm.h>
 #include <linux/ima.h>
+#include <linux/task_integrity.h>
 
 #include "internal.h"
 
@@ -259,7 +260,8 @@ void setattr_copy(struct inode *inode, const struct iattr *attr)
 EXPORT_SYMBOL(setattr_copy);
 
 /**
- * notify_change - modify attributes of a filesytem object
+ * notify_change2 - modify attributes of a filesytem object
+ * @mnt:
  * @dentry:	object affected
  * @attr:	new attributes
  * @delegated_inode: returns inode, if the inode is delegated
@@ -278,7 +280,7 @@ EXPORT_SYMBOL(setattr_copy);
  * the file open for write, as there can be no conflicting delegation in
  * that case.
  */
-int notify_change(struct dentry * dentry, struct iattr * attr, struct inode **delegated_inode)
+int notify_change2(struct vfsmount *mnt, struct dentry * dentry, struct iattr * attr, struct inode **delegated_inode)
 {
 	struct inode *inode = dentry->d_inode;
 	umode_t mode = inode->i_mode;
@@ -302,7 +304,7 @@ int notify_change(struct dentry * dentry, struct iattr * attr, struct inode **de
 			return -EPERM;
 
 		if (!inode_owner_or_capable(inode)) {
-			error = inode_permission(inode, MAY_WRITE);
+			error = inode_permission2(mnt, inode, MAY_WRITE);
 			if (error)
 				return error;
 		}
@@ -405,18 +407,29 @@ int notify_change(struct dentry * dentry, struct iattr * attr, struct inode **de
 	error = try_break_deleg(inode, delegated_inode);
 	if (error)
 		return error;
-
+#ifdef CONFIG_VFSMOUNT_DATA_OPS
+	if (mnt && inode->i_op->setattr2)
+		error = inode->i_op->setattr2(mnt, dentry, attr);
+	else if (inode->i_op->setattr)
+#else
 	if (inode->i_op->setattr)
+#endif
 		error = inode->i_op->setattr(dentry, attr);
 	else
 		error = simple_setattr(dentry, attr);
 
 	if (!error) {
 		fsnotify_change(dentry, ia_valid);
+		five_inode_post_setattr(current, dentry);
 		ima_inode_post_setattr(dentry);
 		evm_inode_post_setattr(dentry, ia_valid);
 	}
 
 	return error;
+}
+
+int notify_change(struct dentry * dentry, struct iattr * attr, struct inode **delegated_inode)
+{
+       return notify_change2(NULL, dentry, attr, delegated_inode);
 }
 EXPORT_SYMBOL_NS(notify_change, ANDROID_GKI_VFS_EXPORT_ONLY);

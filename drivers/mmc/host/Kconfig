@@ -800,6 +800,13 @@ config MMC_DW
 	  block, this provides host support for SD and MMC interfaces, in both
 	  PIO, internal DMA mode and external DMA mode.
 
+config MMC_DW_DEBUG
+	tristate "Samsung DWMCI debug feature"
+	depends on MMC_DW
+	help
+	  This selects support for information logging for debugging.
+	  Select this option if this feature is needed on working.
+
 config MMC_DW_PLTFM
 	tristate "Synopsys Designware MCI Support as platform device"
 	depends on MMC_DW
@@ -831,6 +838,14 @@ config MMC_DW_EXYNOS
 	  This selects support for Samsung Exynos SoC specific extensions to the
 	  Synopsys DesignWare Memory Card Interface driver. Select this option
 	  for platforms based on Exynos4 and Exynos5 SoC's.
+
+config MMC_DW_EXYNOS_FMP
+	bool "EXYNOS Flash Memory Protector for MMC_DW"
+	depends on MMC_DW_EXYNOS && MMC_CRYPTO
+	help
+	  This selects the EXYNOS MMC_DW FMP Driver.
+	  If you have a controller with this interface, say Y or M here.
+	  If unsure, say N.
 
 config MMC_DW_HI3798CV200
 	tristate "Hi3798CV200 specific extensions for Synopsys DW Memory Card Interface"
@@ -1056,6 +1071,12 @@ config MMC_SDHCI_BRCMSTB
 
 	  If unsure, say Y.
 
+config MMC_SRPMB
+	tristate "MMC Secure RPMB Support"
+	depends on MMC_DW
+	help
+	  This option activates mmc secure rpmb.
+
 config MMC_SDHCI_XENON
 	tristate "Marvell Xenon eMMC/SD/SDIO SDHCI driver"
 	depends on MMC_SDHCI_PLTFM
@@ -1106,3 +1127,11 @@ config MMC_OWL
 
 config MMC_SDHCI_EXTERNAL_DMA
 	bool
+
+config SEC_MMC_FEATURE
+	bool "SEC specific MMC/SD feature"
+	depends on MMC_DW
+	help
+	  Enable Samsung MMC/SD feature support.
+	  Enabling this allows kernel to use SEC specific feature
+	  defined and implemented by SEC.

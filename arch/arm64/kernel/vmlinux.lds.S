@@ -194,6 +194,7 @@ SECTIONS
 
 	HYPERVISOR_RODATA_SECTIONS
 
+#ifndef CONFIG_RKP
 	idmap_pg_dir = .;
 	. += IDMAP_DIR_SIZE;
 	idmap_pg_end = .;
@@ -208,6 +209,7 @@ SECTIONS
 
 	swapper_pg_dir = .;
 	. += PAGE_SIZE;
+#endif
 
 	. = ALIGN(SEGMENT_ALIGN);
 	__init_begin = .;

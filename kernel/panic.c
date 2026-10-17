@@ -299,7 +299,7 @@ void panic(const char *fmt, ...)
 	if (len && buf[len - 1] == '\n')
 		buf[len - 1] = '\0';
 
-	pr_emerg("Kernel panic - not syncing: %s\n", buf);
+	pr_auto(ASL5, "Kernel panic - not syncing: %s\n", buf);
 #ifdef CONFIG_DEBUG_BUGVERBOSE
 	/*
 	 * Avoid nested stack-dumping if a panic occurs during oops processing
@@ -759,7 +759,21 @@ device_initcall(register_warn_debugfs);
  */
 __visible noinstr void __stack_chk_fail(void)
 {
+#ifdef CONFIG_ARM64
+	long tempx8 = 0, tempx9 = 0;
+#endif
 	instrumentation_begin();
+
+#ifdef CONFIG_ARM64
+	__asm__ __volatile__ ("mov %0, x8" : "=r" (tempx8));
+	__asm__ __volatile__ ("mov %0, x9" : "=r" (tempx9));
+
+	pr_auto(ASL1, "__stack_chk_fail: x8[%lx] x9[%lx]\n", tempx8, tempx9);
+	pr_auto(ASL1, "    prev fp:0x%lx\n", __builtin_frame_address(1));
+	pr_auto(ASL1, " current sp:0x%lx\n", current_stack_pointer);
+	pr_auto(ASL1, "stack-protector: Kernel stack is corrupted in: %pB\n",
+		__builtin_return_address(0));
+#endif
 	panic("stack-protector: Kernel stack is corrupted in: %pB",
 		__builtin_return_address(0));
 	instrumentation_end();

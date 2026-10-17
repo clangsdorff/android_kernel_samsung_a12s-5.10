@@ -37,6 +37,13 @@
 #include "hub.h"
 #include "otg_productlist.h"
 
+#ifdef CONFIG_USB_DEBUG_DETAILED_LOG
+#ifdef dev_dbg
+#undef dev_dbg
+#endif
+#define dev_dbg dev_info
+#endif
+
 #define USB_VENDOR_GENESYS_LOGIC		0x05e3
 #define USB_VENDOR_SMSC				0x0424
 #define USB_PRODUCT_USB5534B			0x5534
@@ -119,6 +126,9 @@ static int usb_reset_and_verify_device(struct usb_device *udev);
 static int hub_port_disable(struct usb_hub *hub, int port1, int set_state);
 static bool hub_port_warm_reset_required(struct usb_hub *hub, int port1,
 		u16 portstatus);
+#ifdef CONFIG_USB_INTERFACE_LPM_LIST
+static void hub_set_initial_usb2_lpm_policy(struct usb_device *udev);
+#endif
 
 static inline char *portspeed(struct usb_hub *hub, int portstatus)
 {
@@ -1860,7 +1870,12 @@ static int hub_probe(struct usb_interface *intf, const struct usb_device_id *id)
 	 * bus_resume methods.
 	 */
 	if (hdev->parent) {		/* normal device */
+#if defined(CONFIG_USB_HOST_SAMSUNG_FEATURE)
+		if (!(hdev->quirks & USB_QUIRK_HUB_NO_SUSPEND))
+			usb_enable_autosuspend(hdev);
+#else
 		usb_enable_autosuspend(hdev);
+#endif
 	} else {			/* root hub */
 		const struct hc_driver *drv = bus_to_hcd(hdev->bus)->driver;
 
@@ -2490,6 +2505,12 @@ static int usb_enumerate_device(struct usb_device *udev)
 	}
 
 	usb_detect_interface_quirks(udev);
+#ifdef CONFIG_USB_INTERFACE_LPM_LIST
+	if (usb_detect_interface_lpm(udev)) {
+		dev_info(&udev->dev, "L1 enable");
+		hub_set_initial_usb2_lpm_policy(udev);
+	}
+#endif
 
 	return 0;
 }
@@ -4982,6 +5003,12 @@ hub_port_init(struct usb_hub *hub, struct usb_device *udev, int port1,
 				retval = hub_set_address(udev, devnum);
 				if (retval >= 0)
 					break;
+#if defined(CONFIG_USB_HOST_SAMSUNG_FEATURE)
+				if (udev->reset_resume && retval < 0) {
+					dev_err(&udev->dev, "set address fail in reset resume\n");
+					break;
+				}
+#endif
 				msleep(200);
 			}
 			if (retval < 0) {
@@ -5114,11 +5141,16 @@ hub_port_init(struct usb_hub *hub, struct usb_device *udev, int port1,
 		}
 	}
 
+#ifdef CONFIG_USB_DEBUG_DETAILED_LOG
+	dev_info(&udev->dev, "udev->lpm_capable=%d\n", udev->lpm_capable);
+#endif
 	retval = 0;
 	/* notify HCD that we have a device connected and addressed */
 	if (hcd->driver->update_device)
 		hcd->driver->update_device(hcd, udev);
+#ifndef CONFIG_USB_INTERFACE_LPM_LIST
 	hub_set_initial_usb2_lpm_policy(udev);
+#endif
 fail:
 	if (retval) {
 		hub_port_disable(hub, port1, 0);
@@ -5349,6 +5381,13 @@ static void hub_port_connect(struct usb_hub *hub, int port1, u16 portstatus,
 			goto done;
 		return;
 	}
+
+#if defined(CONFIG_USB_HOST_SAMSUNG_FEATURE)
+	/* clear unreliable_port when port is stable */
+	if (unreliable_port == port1)
+		unreliable_port = -1;
+#endif
+
 	if (hub_is_superspeed(hub->hdev))
 		unit_load = 150;
 	else
@@ -5357,6 +5396,12 @@ static void hub_port_connect(struct usb_hub *hub, int port1, u16 portstatus,
 	status = 0;
 
 	for (i = 0; i < PORT_INIT_TRIES; i++) {
+#ifdef CONFIG_USB_DEBUG_DETAILED_LOG
+		dev_info(&port_dev->dev,
+			"%s : before usb_alloc_dev() port %d, status %04x, change %04x, %s\n",
+			__func__, port1, portstatus, portchange, portspeed(hub, portstatus));
+#endif
+
 		if (hub_port_stop_enumerate(hub, port1, i)) {
 			status = -ENODEV;
 			break;
@@ -5376,7 +5421,11 @@ static void hub_port_connect(struct usb_hub *hub, int port1, u16 portstatus,
 			usb_unlock_port(port_dev);
 			goto done;
 		}
-
+#ifdef CONFIG_USB_DEBUG_DETAILED_LOG
+		dev_info(&port_dev->dev,
+			"%s : after usb_alloc_dev() port %d, status %04x, change %04x, %s\n",
+			__func__, port1, portstatus, portchange, portspeed(hub, portstatus));
+#endif
 		usb_set_device_state(udev, USB_STATE_POWERED);
 		udev->bus_mA = hub->mA_per_port;
 		udev->level = hdev->level + 1;
@@ -6064,6 +6113,12 @@ static int usb_reset_and_verify_device(struct usb_device *udev)
 		ret = hub_port_init(parent_hub, udev, port1, i, &descriptor);
 		if (ret >= 0 || ret == -ENOTCONN || ret == -ENODEV)
 			break;
+#if defined(CONFIG_USB_HOST_SAMSUNG_FEATURE)
+		if (ret < 0 && udev->reset_resume == 1) {
+			dev_err(&udev->dev, "hub_port_init fail in reset resume\n");
+			break;
+		}
+#endif
 	}
 	mutex_unlock(hcd->address0_mutex);
 
