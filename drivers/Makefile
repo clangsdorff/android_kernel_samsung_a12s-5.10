@@ -196,9 +196,6 @@ obj-$(CONFIG_EXYNOS_BTS)        += bts/
 # sensor driver
 obj-y				+= sensors/
 
-# uH
-obj-$(CONFIG_UH)        += uh/
-
 # sec battery
 obj-y += battery/fuelgauge/sm5714_fuelgauge/
 obj-y += battery/charger/sm5714_charger/
