@@ -244,6 +244,9 @@ source "drivers/bts/Kconfig"
 
 source "drivers/sensors/Kconfig"
 
+# pmic_class
+source "drivers/regulator/pmic_class/Kconfig"
+
 # sec battery
 source "drivers/battery/fuelgauge/sm5714_fuelgauge/Kconfig" # ADDED BY LEGO AUTOMATICALLY: DO NOT SUBMIT
 source "drivers/battery/charger/sm5714_charger/Kconfig" # ADDED BY LEGO AUTOMATICALLY: DO NOT SUBMIT

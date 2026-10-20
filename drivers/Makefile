@@ -193,6 +193,9 @@ obj-$(CONFIG_COUNTER)		+= counter/
 obj-$(CONFIG_MOST)		+= most/
 obj-$(CONFIG_TRUSTONIC_TEE)     += gud/
 obj-$(CONFIG_EXYNOS_BTS)        += bts/
+# pmic_class
+obj-y += regulator/pmic_class/
+
 # sensor driver
 obj-y				+= sensors/
 
@@ -204,6 +207,7 @@ obj-y += battery/common/
 # vibrator
 obj-y += vibrator/dc/
 obj-y += vibrator/common/
+
 obj-y += security/samsung/icdrv/ # ADDED BY LEGO AUTOMATICALLY: DO NOT SUBMIT
 obj-y += misc/drb/ # ADDED BY LEGO AUTOMATICALLY: DO NOT SUBMIT
 obj-y += nfc/nfc_logger/ # ADDED BY LEGO AUTOMATICALLY: DO NOT SUBMIT
