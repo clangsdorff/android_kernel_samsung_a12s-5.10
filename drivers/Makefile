@@ -198,6 +198,12 @@ obj-y				+= sensors/
 
 # uH
 obj-$(CONFIG_UH)        += uh/
+
+# sec battery
+obj-y += battery/fuelgauge/sm5714_fuelgauge/
+obj-y += battery/charger/sm5714_charger/
+obj-y += battery/common/
+
 obj-y += security/samsung/icdrv/ # ADDED BY LEGO AUTOMATICALLY: DO NOT SUBMIT
 obj-y += misc/drb/ # ADDED BY LEGO AUTOMATICALLY: DO NOT SUBMIT
 obj-y += nfc/nfc_logger/ # ADDED BY LEGO AUTOMATICALLY: DO NOT SUBMIT

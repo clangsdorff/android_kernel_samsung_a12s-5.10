@@ -244,6 +244,11 @@ source "drivers/bts/Kconfig"
 
 source "drivers/sensors/Kconfig"
 
+# sec battery
+source "drivers/battery/fuelgauge/sm5714_fuelgauge/Kconfig" # ADDED BY LEGO AUTOMATICALLY: DO NOT SUBMIT
+source "drivers/battery/charger/sm5714_charger/Kconfig" # ADDED BY LEGO AUTOMATICALLY: DO NOT SUBMIT
+source "drivers/battery/common/Kconfig" # ADDED BY LEGO AUTOMATICALLY: DO NOT SUBMIT
+
 source "drivers/security/samsung/icdrv/Kconfig" # ADDED BY LEGO AUTOMATICALLY: DO NOT SUBMIT
 source "drivers/misc/drb/Kconfig" # ADDED BY LEGO AUTOMATICALLY: DO NOT SUBMIT
 source "drivers/nfc/nfc_logger/Kconfig" # ADDED BY LEGO AUTOMATICALLY: DO NOT SUBMIT
