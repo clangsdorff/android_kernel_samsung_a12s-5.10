@@ -610,11 +610,12 @@ struct common_panel_info ea8076_a21s_default_panel_info = {
 #endif
 };
 
-static int __init ea8076_a21s_panel_init(void)
+int __init ea8076_a21s_panel_init(void)
 {
 	register_common_panel(&ea8076_a21s_default_panel_info);
 
 	return 0;
 }
-arch_initcall(ea8076_a21s_panel_init)
+/* called by mcd_panel_register */
+/* arch_initcall(ea8076_a21s_panel_init) */
 #endif /* __EA8076_A21S_PANEL_H__ */

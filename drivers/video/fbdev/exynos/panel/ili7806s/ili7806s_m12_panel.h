@@ -976,11 +976,12 @@ struct common_panel_info ili7806s_m12_default_panel_info = {
 	.i2c_data = &ili7806s_m12_i2c_data,
 };
 
-static int __init ili7806s_m12_panel_init(void)
+int __init ili7806s_m12_panel_init(void)
 {
 	register_common_panel(&ili7806s_m12_default_panel_info);
 
 	return 0;
 }
-arch_initcall(ili7806s_m12_panel_init)
+/* called by mcd_panel_register */
+/* arch_initcall(ili7806s_m12_panel_init) */
 #endif /* __ILI7806S_M12_PANEL_H__ */

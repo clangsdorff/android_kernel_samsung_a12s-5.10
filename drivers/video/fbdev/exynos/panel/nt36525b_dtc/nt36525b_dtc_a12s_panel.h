@@ -1590,7 +1590,7 @@ static int __init a12s_blic_init(void)
 	return 0;
 }
 
-static int __init nt36525b_dtc_a12s_panel_init(void)
+int __init nt36525b_dtc_a12s_panel_init(void)
 {
 	a12s_blic_init();
 
@@ -1598,5 +1598,6 @@ static int __init nt36525b_dtc_a12s_panel_init(void)
 
 	return 0;
 }
-arch_initcall(nt36525b_dtc_a12s_panel_init)
+/* called by mcd_panel_register */
+/* arch_initcall(nt36525b_dtc_a12s_panel_init) */
 #endif /* __NT36525B_DTC_A12S_PANEL_H__ */

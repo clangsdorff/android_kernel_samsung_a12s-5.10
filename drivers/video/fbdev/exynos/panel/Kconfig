@@ -125,7 +125,6 @@ config SUPPORT_VCOM_TRIM_TEST
 	bool "Support VCOM TRIM test"
 	default n
 
-
 config EXYNOS_DECON_LCD_EA8076_A21S
 	depends on EXYNOS_DECON_LCD
 	tristate "EA8076_A21S LCD driver"

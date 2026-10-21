@@ -21,15 +21,28 @@
  * If you want to add model panel driver, please add here.
  */
 
-#if IS_ENABLED(CONFIG_EXYNOS_DECON_LCD_NT36525_XCOVER5)
-extern int __init nt36525_xcover5_panel_init(void);
-#endif
+#define REGISTER_PANEL(cfg, fn)				\
+	do {						\
+		extern int fn(void);			\
+		if (IS_ENABLED(cfg))			\
+			fn();				\
+	} while (0)
 
 static void __init register_model_panels(void)
 {
-#if IS_ENABLED(CONFIG_EXYNOS_DECON_LCD_NT36525_XCOVER5)
-	nt36525_xcover5_panel_init();
-#endif
+	REGISTER_PANEL(CONFIG_EXYNOS_DECON_LCD_EA8076_A21S,        ea8076_a21s_panel_init);
+	REGISTER_PANEL(CONFIG_EXYNOS_DECON_LCD_ILI9882N_M12S,      ili9882n_m12s_panel_init);
+	REGISTER_PANEL(CONFIG_EXYNOS_DECON_LCD_NT36525_XCOVER5,    nt36525_xcover5_panel_init);
+	REGISTER_PANEL(CONFIG_EXYNOS_DECON_LCD_NT36675_M12,        nt36675_m12_panel_init);
+	REGISTER_PANEL(CONFIG_EXYNOS_DECON_LCD_ILI7806S_M12,       ili7806s_m12_panel_init);
+	REGISTER_PANEL(CONFIG_EXYNOS_DECON_LCD_NT36525B_CTC_A12S,  nt36525b_ctc_a12s_panel_init);
+	REGISTER_PANEL(CONFIG_EXYNOS_DECON_LCD_ILI9882Q_BOE_A12S,  ili9882q_boe_a12s_panel_init);
+	REGISTER_PANEL(CONFIG_EXYNOS_DECON_LCD_NT36525B_SHARP_A12S, nt36525b_sharp_a12s_panel_init);
+	REGISTER_PANEL(CONFIG_EXYNOS_DECON_LCD_NT36525B_DTC_A12S,  nt36525b_dtc_a12s_panel_init);
+	REGISTER_PANEL(CONFIG_EXYNOS_DECON_LCD_TD4150_BOE_A12S,    td4150_boe_a12s_panel_init);
+	REGISTER_PANEL(CONFIG_EXYNOS_DECON_LCD_TD4375_BOE_A12S,    td4375_boe_a12s_panel_init);
+	REGISTER_PANEL(CONFIG_EXYNOS_DECON_LCD_ILI7807S_A12S,      ili7807s_a12s_panel_init);
+	REGISTER_PANEL(CONFIG_EXYNOS_DECON_LCD_TD4160_BOE_A12S,    td4160_boe_a12s_panel_init);
 }
 
 /*
