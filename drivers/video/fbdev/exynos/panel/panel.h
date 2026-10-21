@@ -1043,7 +1043,7 @@ enum {
 };
 
 #define MAX_PANEL (32)
-#define MAX_PANEL_DDI (8)
+#define MAX_PANEL_DDI (16)
 #define MAX_PANEL_LUT (128)
 
 enum {
