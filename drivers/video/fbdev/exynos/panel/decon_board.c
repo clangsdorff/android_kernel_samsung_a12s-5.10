@@ -1671,4 +1671,42 @@ int __init decon_board_late_initcall(void)
 }
 //late_initcall_sync(decon_board_late_initcall);
 
+#ifdef CONFIG_EXYNOS_DECON_LCD_A12S_BLIC_DUAL
+int __init a12s_regulator_core_initcall(void)
+{
+	struct device_node *np = NULL;
+	struct property *prop_new = NULL;
+	int ret = 0;
 
+	if (boot_blic_type != 1)
+		return 0;
+
+	pr_info("%s: ++\n", __func__);
+
+	np = of_find_node_by_name(NULL, "__gpio_lcd_bl_en");
+	if (!np)
+		pr_info("%s: of_find_node_by_name fail(%d)\n", __func__, "__gpio_lcd_bl_en");
+
+	prop_new = kzalloc(sizeof(struct property), GFP_KERNEL);
+	if (!prop_new)
+		return -ENOMEM;
+
+	prop_new->name = "compatible";
+	prop_new->value = "regulator-void";
+	prop_new->length = sizeof("regulator-void");
+
+	ret = of_update_property(np, prop_new);
+	if (ret < 0)
+		pr_info("%s: of_update_property fail(%d)\n", __func__, ret);
+
+	pr_info("%s: --\n", __func__);
+
+	return 0;
+}
+#else
+int __init a12s_regulator_core_initcall(void)
+{
+	return 0;
+}
+#endif
+//core_initcall(a12s_regulator_core_initcall);

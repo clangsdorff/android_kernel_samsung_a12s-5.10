@@ -17,6 +17,9 @@ extern unsigned int lcdtype;
 #elif IS_ENABLED(CONFIG_EXYNOS_DPU30)
 extern int boot_panel_id;
 #endif
+#ifdef CONFIG_EXYNOS_DECON_LCD_A12S_BLIC_DUAL
+extern int boot_blic_type;
+#endif
 
 extern void run_list(struct device *dev, const char *name);
 extern void run_action(struct device *dev, const char *name, const char *type, const char *subinfo);

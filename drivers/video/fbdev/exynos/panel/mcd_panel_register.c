@@ -54,6 +54,7 @@ extern int __init decon_notifier_init(void);
 extern int __init regulator_void_init(void);
 extern void __exit regulator_void_exit(void);
 extern int __init decon_assist_init(void);
+extern int __init a12s_regulator_core_initcall(void);
 
 static int __init mcd_panel_register_init(void)
 {
@@ -65,6 +66,11 @@ static int __init mcd_panel_register_init(void)
 	ret = decon_board_init();
 	if (ret) {
 		pr_err("failed to register decon decon_board_init\n");
+		return ret;
+	}
+	ret = a12s_regulator_core_initcall();
+	if (ret) {
+		pr_err("failed to register a12s_regulator_core_initcall\n");
 		return ret;
 	}
 	ret = decon_notifier_init();
