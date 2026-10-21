@@ -936,14 +936,13 @@ config ERD_LEDS_S2MU106_FLASH
 	help
 	  If you say yes here you will get support for
 	  for the ERD_LEDS_S2MU106_FLASH led chip.
-	  
-config LEDS_S2MU106_FLASH
-	tristate "FLASH LED support for the S2MU106"
-    depends on (MFD_S2MU106) && I2C
+
+config LEDS_SM5714
+	bool "LED support for the LEDS_SM5714"
+	depends on LEDS_CLASS
 	help
-	  If you say yes here you will get support for
-	  for the LEDS_S2MU106_FLASH led chip.
-	  
+	  This option enables support for the LEDs on the SM5714.
+
 comment "LED Triggers"
 source "drivers/leds/trigger/Kconfig"
 
