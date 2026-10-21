@@ -215,6 +215,11 @@ obj-y += mfd/sm/sm5714/
 obj-y += muic/common/
 obj-y += muic/sm/sm5714/
 
+# sm5714 typec
+obj-y += usb/typec/manager/ # ADDED BY LEGO AUTOMATICALLY: DO NOT SUBMIT
+obj-y += usb/typec/common/ # ADDED BY LEGO AUTOMATICALLY: DO NOT SUBMIT
+obj-y += usb/typec/sm/sm5714/ # ADDED BY LEGO AUTOMATICALLY: DO NOT SUBMIT
+
 # vibrator
 obj-y += vibrator/dc/
 obj-y += vibrator/common/
