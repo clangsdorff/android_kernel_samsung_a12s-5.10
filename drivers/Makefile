@@ -204,6 +204,9 @@ obj-y += battery/fuelgauge/sm5714_fuelgauge/
 obj-y += battery/charger/sm5714_charger/
 obj-y += battery/common/
 
+# sm5714 mfd
+obj-y += mfd/sm/sm5714/
+
 # vibrator
 obj-y += vibrator/dc/
 obj-y += vibrator/common/
