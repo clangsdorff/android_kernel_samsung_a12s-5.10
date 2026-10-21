@@ -194,19 +194,23 @@ obj-$(CONFIG_MOST)		+= most/
 obj-$(CONFIG_TRUSTONIC_TEE)     += gud/
 obj-$(CONFIG_EXYNOS_BTS)        += bts/
 
+# dev ril bridge
+obj-y += misc/drb/
+
+# nfc logger
+obj-y += nfc/nfc_logger/
+
 # fingerprint
 obj-y += fingerprint/
 
+# input_boost
+obj-y += input/input_boost/
+
+# kunit
+obj-y += kunit/
+
 # pmic_class
 obj-y += regulator/pmic_class/
-
-# sensor driver
-obj-y				+= sensors/
-
-# sec battery
-obj-y += battery/fuelgauge/sm5714_fuelgauge/
-obj-y += battery/charger/sm5714_charger/
-obj-y += battery/common/
 
 # sm5714 mfd
 obj-y += mfd/sm/sm5714/
@@ -216,25 +220,38 @@ obj-y += muic/common/
 obj-y += muic/sm/sm5714/
 
 # sm5714 typec
-obj-y += usb/typec/manager/ # ADDED BY LEGO AUTOMATICALLY: DO NOT SUBMIT
-obj-y += usb/typec/common/ # ADDED BY LEGO AUTOMATICALLY: DO NOT SUBMIT
-obj-y += usb/typec/sm/sm5714/ # ADDED BY LEGO AUTOMATICALLY: DO NOT SUBMIT
+obj-y += usb/typec/manager/
+obj-y += usb/typec/common/
+obj-y += usb/typec/sm/sm5714/
+
+# sensors driver
+obj-y += sensors/
+
+# shub
+obj-y += sensorhub/
+
+# sec battery
+obj-y += battery/fuelgauge/sm5714_fuelgauge/
+obj-y += battery/charger/sm5714_charger/
+obj-y += battery/common/
+
+# sti
+obj-y += sti/abc/
+
+# security
+obj-y += security/samsung/icdrv/
+obj-y += security/samsung/five_tee_driver/
+obj-y += security/samsung/tzic/
+
+# sec_thermistor
+obj-y += samsung/pm/sec_thermistor/
+
+# sec_debug
+obj-y += samsung/debug/
 
 # vibrator
 obj-y += vibrator/dc/
 obj-y += vibrator/common/
 
-obj-y += security/samsung/icdrv/ # ADDED BY LEGO AUTOMATICALLY: DO NOT SUBMIT
-obj-y += misc/drb/ # ADDED BY LEGO AUTOMATICALLY: DO NOT SUBMIT
-obj-y += nfc/nfc_logger/ # ADDED BY LEGO AUTOMATICALLY: DO NOT SUBMIT
-obj-y += security/samsung/five_tee_driver/ # ADDED BY LEGO AUTOMATICALLY: DO NOT SUBMIT
-obj-y += sti/abc/ # ADDED BY LEGO AUTOMATICALLY: DO NOT SUBMIT
-obj-y += input/input_boost/ # ADDED BY LEGO AUTOMATICALLY: DO NOT SUBMIT
-obj-y += kunit/ # ADDED BY LEGO AUTOMATICALLY: DO NOT SUBMIT
-obj-y += security/samsung/tzic/ # ADDED BY LEGO AUTOMATICALLY: DO NOT SUBMIT
-obj-y += samsung/debug/ # ADDED BY LEGO AUTOMATICALLY: DO NOT SUBMIT
-obj-y += usb/common/vbus_notifier/ # ADDED BY LEGO AUTOMATICALLY: DO NOT SUBMIT
-obj-y += usb/typec/manager/ # ADDED BY LEGO AUTOMATICALLY: DO NOT SUBMIT
-obj-y += usb/typec/common/ # ADDED BY LEGO AUTOMATICALLY: DO NOT SUBMIT
-obj-y += samsung/pm/sec_thermistor/ # ADDED BY LEGO AUTOMATICALLY: DO NOT SUBMIT
-obj-y += sensorhub/ # ADDED BY LEGO AUTOMATICALLY: DO NOT SUBMIT
+# vbus notifier
+obj-y += usb/common/vbus_notifier/

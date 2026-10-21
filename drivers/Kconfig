@@ -242,10 +242,20 @@ source "drivers/gud/Kconfig"
 
 source "drivers/bts/Kconfig"
 
-source "drivers/sensors/Kconfig"
+# dev ril bridge
+source "drivers/misc/drb/Kconfig"
+
+# nfc logger
+source "drivers/nfc/nfc_logger/Kconfig"
 
 # fingerprint
 source "drivers/fingerprint/Kconfig"
+
+# input_boost
+source "drivers/input/input_boost/Kconfig"
+
+# kunit
+source "drivers/kunit/Kconfig"
 
 # pmic_class
 source "drivers/regulator/pmic_class/Kconfig"
@@ -258,36 +268,45 @@ source "drivers/muic/common/Kconfig"
 source "drivers/muic/sm/sm5714/Kconfig"
 
 # sm5714 typec
-source "drivers/usb/typec/manager/Kconfig" # ADDED BY LEGO AUTOMATICALLY: DO NOT SUBMIT
-source "drivers/usb/typec/common/Kconfig" # ADDED BY LEGO AUTOMATICALLY: DO NOT SUBMIT
-source "drivers/usb/typec/sm/sm5714/Kconfig" # ADDED BY LEGO AUTOMATICALLY: DO NOT SUBMIT
+source "drivers/usb/typec/manager/Kconfig"
+source "drivers/usb/typec/common/Kconfig"
+source "drivers/usb/typec/sm/sm5714/Kconfig"
+
+# sensors driver
+source "drivers/sensors/Kconfig"
+
+# shub
+source "drivers/sensorhub/Kconfig"
+source "drivers/sensorhub/debug/Kconfig"
+source "drivers/sensorhub/sensor/Kconfig"
+source "drivers/sensorhub/sensorhub/Kconfig"
+source "drivers/sensorhub/vendor/Kconfig"
 
 # sec battery
-source "drivers/battery/fuelgauge/sm5714_fuelgauge/Kconfig" # ADDED BY LEGO AUTOMATICALLY: DO NOT SUBMIT
-source "drivers/battery/charger/sm5714_charger/Kconfig" # ADDED BY LEGO AUTOMATICALLY: DO NOT SUBMIT
-source "drivers/battery/common/Kconfig" # ADDED BY LEGO AUTOMATICALLY: DO NOT SUBMIT
+source "drivers/battery/fuelgauge/sm5714_fuelgauge/Kconfig"
+source "drivers/battery/charger/sm5714_charger/Kconfig"
+source "drivers/battery/common/Kconfig"
+
+# sti
+source "drivers/sti/abc/Kconfig"
+source "drivers/sti/common/Kconfig"
+
+# security
+source "drivers/security/samsung/icdrv/Kconfig"
+source "drivers/security/samsung/five_tee_driver/Kconfig"
+source "drivers/security/samsung/tzic/Kconfig"
+
+# sec_thermistor
+source "drivers/samsung/pm/sec_thermistor/Kconfig"
+
+# sec_debug
+source "drivers/samsung/debug/Kconfig"
 
 # vibrator
 source "drivers/vibrator/dc/Kconfig"
 source "drivers/vibrator/common/Kconfig"
 
-source "drivers/security/samsung/icdrv/Kconfig" # ADDED BY LEGO AUTOMATICALLY: DO NOT SUBMIT
-source "drivers/misc/drb/Kconfig" # ADDED BY LEGO AUTOMATICALLY: DO NOT SUBMIT
-source "drivers/nfc/nfc_logger/Kconfig" # ADDED BY LEGO AUTOMATICALLY: DO NOT SUBMIT
-source "drivers/security/samsung/five_tee_driver/Kconfig" # ADDED BY LEGO AUTOMATICALLY: DO NOT SUBMIT
-source "drivers/sti/abc/Kconfig" # ADDED BY LEGO AUTOMATICALLY: DO NOT SUBMIT
-source "drivers/sti/common/Kconfig" # ADDED BY LEGO AUTOMATICALLY: DO NOT SUBMIT
-source "drivers/input/input_boost/Kconfig" # ADDED BY LEGO AUTOMATICALLY: DO NOT SUBMIT
-source "drivers/kunit/Kconfig" # ADDED BY LEGO AUTOMATICALLY: DO NOT SUBMIT
-source "drivers/security/samsung/tzic/Kconfig" # ADDED BY LEGO AUTOMATICALLY: DO NOT SUBMIT
-source "drivers/samsung/debug/Kconfig" # ADDED BY LEGO AUTOMATICALLY: DO NOT SUBMIT
-source "drivers/usb/common/vbus_notifier/Kconfig" # ADDED BY LEGO AUTOMATICALLY: DO NOT SUBMIT	
-source "drivers/usb/typec/manager/Kconfig" # ADDED BY LEGO AUTOMATICALLY: DO NOT SUBMIT
-source "drivers/usb/typec/common/Kconfig" # ADDED BY LEGO AUTOMATICALLY: DO NOT SUBMIT
-source "drivers/samsung/pm/sec_thermistor/Kconfig" # ADDED BY LEGO AUTOMATICALLY: DO NOT SUBMIT
-source "drivers/sensorhub/Kconfig" # ADDED BY LEGO AUTOMATICALLY: DO NOT SUBMIT
-source "drivers/sensorhub/debug/Kconfig" # ADDED BY LEGO AUTOMATICALLY: DO NOT SUBMIT
-source "drivers/sensorhub/sensor/Kconfig" # ADDED BY LEGO AUTOMATICALLY: DO NOT SUBMIT
-source "drivers/sensorhub/sensorhub/Kconfig" # ADDED BY LEGO AUTOMATICALLY: DO NOT SUBMIT
-source "drivers/sensorhub/vendor/Kconfig" # ADDED BY LEGO AUTOMATICALLY: DO NOT SUBMIT
+# vbus notifier
+source "drivers/usb/common/vbus_notifier/Kconfig"
+
 endmenu
