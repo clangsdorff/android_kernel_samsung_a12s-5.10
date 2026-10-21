@@ -244,6 +244,9 @@ source "drivers/bts/Kconfig"
 
 source "drivers/sensors/Kconfig"
 
+# fingerprint
+source "drivers/fingerprint/Kconfig"
+
 # pmic_class
 source "drivers/regulator/pmic_class/Kconfig"
 

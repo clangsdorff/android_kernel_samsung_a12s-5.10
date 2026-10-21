@@ -193,6 +193,10 @@ obj-$(CONFIG_COUNTER)		+= counter/
 obj-$(CONFIG_MOST)		+= most/
 obj-$(CONFIG_TRUSTONIC_TEE)     += gud/
 obj-$(CONFIG_EXYNOS_BTS)        += bts/
+
+# fingerprint
+obj-y += fingerprint/
+
 # pmic_class
 obj-y += regulator/pmic_class/
 
