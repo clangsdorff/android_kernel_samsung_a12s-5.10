@@ -207,6 +207,10 @@ obj-y += battery/common/
 # sm5714 mfd
 obj-y += mfd/sm/sm5714/
 
+# sm5714 muic
+obj-y += muic/common/
+obj-y += muic/sm/sm5714/
+
 # vibrator
 obj-y += vibrator/dc/
 obj-y += vibrator/common/

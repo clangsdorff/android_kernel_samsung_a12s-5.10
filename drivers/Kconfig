@@ -250,6 +250,10 @@ source "drivers/regulator/pmic_class/Kconfig"
 # sm5714 mfd
 source "drivers/mfd/sm/sm5714/Kconfig"
 
+# sm5714 muic
+source "drivers/muic/common/Kconfig"
+source "drivers/muic/sm/sm5714/Kconfig"
+
 # sec battery
 source "drivers/battery/fuelgauge/sm5714_fuelgauge/Kconfig" # ADDED BY LEGO AUTOMATICALLY: DO NOT SUBMIT
 source "drivers/battery/charger/sm5714_charger/Kconfig" # ADDED BY LEGO AUTOMATICALLY: DO NOT SUBMIT
