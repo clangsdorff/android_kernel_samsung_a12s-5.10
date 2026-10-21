@@ -70,10 +70,6 @@
 #include <asm/mmu_context.h>
 #include <asm/tlb.h>
 
-#ifdef CONFIG_SECURITY_DEFEX
-#include <linux/defex.h>
-#endif
-
 #include <trace/events/task.h>
 #include "internal.h"
 
@@ -1035,10 +1031,6 @@ static int exec_mmap(struct mm_struct *mm)
 	tsk->mm->vmacache_seqnum = 0;
 	lru_gen_add_mm(mm);
 	vmacache_flush(tsk);
-#ifdef CONFIG_KDP_CRED
-	if (kdp_enable)
-		uh_call(UH_APP_KDP, SET_CRED_PGD, (u64)current_cred(), (u64)mm->pgd, 0, 0);
-#endif
 	task_unlock(tsk);
 	lru_gen_use_mm(mm);
 	if (old_mm) {
@@ -1833,15 +1825,6 @@ static int bprm_execve(struct linux_binprm *bprm,
 	retval = PTR_ERR(file);
 	if (IS_ERR(file))
 		goto out_unmark;
-
-#ifdef CONFIG_SECURITY_DEFEX
-	retval = task_defex_enforce(current, file, -__NR_execve);
-	if (retval < 0) {
-		bprm->file = file;
-		retval = -EPERM;
-		goto out_unmark;
-	 }
-#endif
 
 	sched_exec();
 

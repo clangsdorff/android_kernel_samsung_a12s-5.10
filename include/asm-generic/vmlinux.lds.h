@@ -456,32 +456,6 @@
 #define PG_TRAMP
 #endif
 
-#ifdef CONFIG_RKP
-#define RKP_RO_DATA							\
-	PG_IDMAP								\
-	PG_SWAP									\
-	PG_RESERVED								\
-	PG_TRAMP
-#else
-#define RKP_RO_DATA
-#endif
-
-#ifdef CONFIG_UH
-#define UH_RO_SECTION						\
-	. = ALIGN(4096);						\
-	.uh_bss       : AT(ADDR(.uh_bss) - LOAD_OFFSET) {	\
-		*(.uh_bss.page_aligned)				\
-		*(.uh_bss)						\
-	} = 0								\
-									\
-	.uh_ro        : AT(ADDR(.uh_ro) - LOAD_OFFSET) {	\
-		*(.rkp_ro)						\
-		*(.kdp_ro)						\
-		RKP_RO_DATA						\
-	}
-#else
-#define UH_RO_SECTION
-#endif
 /*
  * Read only Data
  */
@@ -502,9 +476,6 @@
 	.rodata1          : AT(ADDR(.rodata1) - LOAD_OFFSET) {		\
 		*(.rodata1)						\
 	}								\
-									\
-	/* uH */							\
-	UH_RO_SECTION							\
 									\
 	/* PCI quirks */						\
 	.pci_fixup        : AT(ADDR(.pci_fixup) - LOAD_OFFSET) {	\

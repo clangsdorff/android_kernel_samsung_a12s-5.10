@@ -134,13 +134,8 @@ static inline int is_exception(char *comm)
 
 static inline void sys_umount_trace_print(struct mount *mnt, int flags)
 {
-#ifdef CONFIG_KDP_NS
-	struct super_block *sb = ((struct kdp_mount *)mnt)->mnt->mnt_sb;
-	int mnt_flags = ((struct kdp_mount *)mnt)->mnt->mnt_flags;
-#else
 	struct super_block *sb = mnt->mnt.mnt_sb;
 	int mnt_flags = mnt->mnt.mnt_flags;
-#endif
 
 #ifndef SDFAT_SUPER_MAGIC
 #define SDFAT_SUPER_MAGIC       (0x5EC5DFA4UL)

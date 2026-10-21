@@ -111,16 +111,8 @@
 #define CREATE_TRACE_POINTS
 #include <trace/events/task.h>
 
-#ifdef CONFIG_SECURITY_DEFEX
-#include <linux/defex.h>
-#endif
-
 #undef CREATE_TRACE_POINTS
 #include <trace/hooks/sched.h>
-
-#ifdef CONFIG_KDP_CRED
-#include <linux/kdp.h>
-#endif
 
 /*
  * Minimum number of threads to boot the kernel
@@ -2479,10 +2471,6 @@ static __latent_entropy struct task_struct *copy_process(
 
 	copy_oom_score_adj(clone_flags, p);
 
-#ifdef CONFIG_KDP_CRED
-	if (kdp_enable)
-		kdp_assign_pgd(p);
-#endif
 	return p;
 
 bad_fork_cancel_cgroup:
@@ -2660,10 +2648,6 @@ pid_t kernel_clone(struct kernel_clone_args *args)
 
 	pid = get_task_pid(p, PIDTYPE_PID);
 	nr = pid_vnr(pid);
-
-#ifdef CONFIG_SECURITY_DEFEX
-	task_defex_zero_creds(p);
-#endif
 
 	if (clone_flags & CLONE_PARENT_SETTID)
 		put_user(nr, args->parent_tid);

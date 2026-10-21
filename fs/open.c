@@ -33,10 +33,6 @@
 #include <linux/dnotify.h>
 #include <linux/compat.h>
 
-#ifdef CONFIG_SECURITY_DEFEX
-#include <linux/defex.h>
-#endif
-
 #include "internal.h"
 #include <trace/hooks/syscall_check.h>
 
@@ -1232,12 +1228,6 @@ static long do_sys_openat2(int dfd, const char __user *filename,
 	if (fd >= 0) {
 		struct file *f = do_filp_open(dfd, tmp, &op);
 
-#ifdef CONFIG_SECURITY_DEFEX
-		if (!IS_ERR(f) && task_defex_enforce(current, f, -__NR_openat)) {
-			fput(f);
-			f = ERR_PTR(-EPERM);
-		}
-#endif
 		if (IS_ERR(f)) {
 			put_unused_fd(fd);
 			fd = PTR_ERR(f);
