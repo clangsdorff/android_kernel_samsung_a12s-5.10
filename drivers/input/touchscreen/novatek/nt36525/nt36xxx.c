@@ -2105,15 +2105,6 @@ Description:
 return:
 	Executive outcomes. 0---succeed. negative---failed
 *******************************************************/
-unsigned int nt_bootmode;
-static int __init get_bootmoode(char *arg)
-{
-	get_option(&arg, &nt_bootmode);
-
-	return 0;
-}
-early_param("bootmode", get_bootmoode);
-
 static int32_t nvt_ts_probe(struct spi_device *client)
 {
 	int32_t ret = 0;
@@ -2123,12 +2114,6 @@ static int32_t nvt_ts_probe(struct spi_device *client)
 	struct nvt_ts_platdata *platdata;
 
 	input_info(true, &client->dev, "%s : start\n", __func__);
-
-	if (nt_bootmode == 2) {
-		input_info(true, &client->dev, "%s : Do not load driver due to : device entered recovery mode %d\n",
-			__func__, nt_bootmode);
-		return -ENODEV;
-	}
 
 	ts = kzalloc(sizeof(struct nvt_ts_data), GFP_KERNEL);
 	if (ts == NULL) {
