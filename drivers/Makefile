@@ -209,9 +209,6 @@ obj-y += input/input_boost/
 # kunit
 obj-y += kunit/
 
-# pmic_class
-obj-y += regulator/pmic_class/
-
 # sm5714 mfd
 obj-y += mfd/sm/sm5714/
 

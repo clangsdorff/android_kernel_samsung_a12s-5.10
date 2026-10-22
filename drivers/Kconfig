@@ -259,9 +259,6 @@ source "drivers/input/input_boost/Kconfig"
 # kunit
 source "drivers/kunit/Kconfig"
 
-# pmic_class
-source "drivers/regulator/pmic_class/Kconfig"
-
 # sm5714 mfd
 source "drivers/mfd/sm/sm5714/Kconfig"
 
