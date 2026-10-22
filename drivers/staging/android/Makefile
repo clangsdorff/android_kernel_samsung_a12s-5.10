@@ -2,6 +2,7 @@
 ccflags-y += -I$(src)			# needed for trace events
 
 obj-y					+= ion/
+obj-$(CONFIG_ANDROID_SWITCH)           += switch/
 
 obj-$(CONFIG_ASHMEM)			+= ashmem.o
 obj-$(CONFIG_DEBUG_KINFO)	+= debug_kinfo.o
