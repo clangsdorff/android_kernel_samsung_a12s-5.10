@@ -20,6 +20,8 @@
  * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA 02111-1307 USA
  */
 
+#include <linux/namei.h>
+#include <linux/fs.h>
 #include "ili9881x.h"
 
 #define USER_STR_BUFF		PAGE_SIZE
@@ -176,7 +178,6 @@ struct file_buffer {
 static int file_write(struct file_buffer *file, bool new_open)
 {
 	struct file *f = NULL;
-	mm_segment_t fs;
 	loff_t pos;
 
 	if (file->ptr == NULL) {
@@ -204,11 +205,8 @@ static int file_write(struct file_buffer *file, bool new_open)
 		return -1;
 	}
 
-	fs = get_fs();
-	set_fs(KERNEL_DS);
 	pos = 0;
-	vfs_write(f, file->ptr, file->flen, &pos);
-	set_fs(fs);
+	kernel_write(f, file->ptr, file->flen, &pos);
 	filp_close(f, NULL);
 	return 0;
 }
@@ -337,14 +335,21 @@ out:
 
 int dev_mkdir(char *name, umode_t mode)
 {
+	struct dentry *dentry;
+	struct path path;
 	int err;
-	mm_segment_t fs;
 
 	input_info(true, ilits->dev, "%s mkdir: %s\n", __func__, name);
-	fs = get_fs();
-	set_fs(KERNEL_DS);
-	err = ksys_mkdir(name, mode);
-	set_fs(fs);
+
+	dentry = kern_path_create(AT_FDCWD, name, &path, LOOKUP_DIRECTORY);
+	if (IS_ERR(dentry))
+		return PTR_ERR(dentry);
+
+	if (!IS_POSIXACL(d_inode(path.dentry)))
+		mode &= ~current_umask();
+
+	err = vfs_mkdir(d_inode(path.dentry), dentry, mode);
+	done_path_create(&path, dentry);
 
 	return err;
 }

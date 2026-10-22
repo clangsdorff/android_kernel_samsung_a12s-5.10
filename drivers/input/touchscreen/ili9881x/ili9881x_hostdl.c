@@ -204,7 +204,6 @@ static int ilitek_tddi_fw_iram_read(u8 *buf, u32 start, int len)
 int ili_fw_dump_iram_data(u32 start, u32 end, bool save)
 {
 	struct file *f = NULL;
-	mm_segment_t old_fs;
 	loff_t pos = 0;
 	int i, ret = 0;
 	int len, tmp = debug_en;
@@ -243,12 +242,8 @@ int ili_fw_dump_iram_data(u32 start, u32 end, bool save)
 			goto out;
 		}
 
-		old_fs = get_fs();
-		set_fs(get_ds());
-		set_fs(KERNEL_DS);
 		pos = 0;
-		vfs_write(f, ilits->update_buf, len, &pos);
-		set_fs(old_fs);
+		kernel_write(f, ilits->update_buf, len, &pos);
 		filp_close(f, NULL);
 		input_info(true, ilits->dev, "%s Save iram data to %s\n", __func__, DUMP_IRAM_PATH);
 	} else {
@@ -748,7 +743,6 @@ static int ilitek_tdd_fw_hex_open(u8 op, u8 *pfw)
 	int ret = 0, fsize = 0;
 	const struct firmware *fw = NULL;
 	struct file *f = NULL;
-	mm_segment_t old_fs;
 	loff_t pos = 0;
 	size_t spu_fw_size;
 	size_t spu_ret = 0;
@@ -833,9 +827,6 @@ static int ilitek_tdd_fw_hex_open(u8 op, u8 *pfw)
 		}
 
 		/* ready to map user's memory to obtain data by reading files */
-		old_fs = get_fs();
-		set_fs(get_ds());
-		set_fs(KERNEL_DS);
 		if (ilits->signing) {
 			unsigned char *spu_fw_data;
 
@@ -845,7 +836,7 @@ static int ilitek_tdd_fw_hex_open(u8 op, u8 *pfw)
 				ret = -ENOMEM;
 				goto signing_out;
 			}
-			nread = vfs_read(f, (char __user *)spu_fw_data, spu_fw_size, &f->f_pos);
+			nread = kernel_read(f, spu_fw_data, spu_fw_size, &pos);
 
 			input_info(true, ilits->dev, "%s: start, file path %s, size %ld Bytes\n",
 					__func__, ilits->md_fw_filp_path, spu_fw_size);
@@ -871,10 +862,9 @@ static int ilitek_tdd_fw_hex_open(u8 op, u8 *pfw)
 			vfree(spu_fw_data);
 		} else {
 			pos = 0;
-			vfs_read(f, (u8 *)ilits->tp_fw.data, fsize, &pos);
+			kernel_read(f, ilits->tp_fw.data, fsize, &pos);
 		}
 signing_out:
-		set_fs(old_fs);
 		filp_close(f, NULL);
 		ilits->tp_fw.size = fsize;
 		break;

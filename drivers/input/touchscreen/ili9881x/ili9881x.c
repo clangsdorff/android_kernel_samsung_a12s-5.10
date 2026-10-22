@@ -300,11 +300,8 @@ static void ilitek_tddi_wq_esd_check(struct work_struct *work)
 static int read_power_status(u8 *buf)
 {
 	struct file *f = NULL;
-	mm_segment_t old_fs;
+	loff_t pos = 0;
 	ssize_t byte = 0;
-
-	old_fs = get_fs();
-	set_fs(get_ds());
 
 	f = filp_open(POWER_STATUS_PATH, O_RDONLY, 0);
 	if (ERR_ALLOC_MEM(f)) {
@@ -312,12 +309,10 @@ static int read_power_status(u8 *buf)
 		return -1;
 	}
 
-	f->f_op->llseek(f, 0, SEEK_SET);
-	byte = f->f_op->read(f, buf, 20, &f->f_pos);
+	byte = kernel_read(f, buf, 20, &pos);
 
 	ILI_DBG("%s Read %d bytes\n", __func__, (int)byte);
 
-	set_fs(old_fs);
 	filp_close(f, NULL);
 	return 0;
 }
