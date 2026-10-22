@@ -224,6 +224,9 @@ obj-y += usb/typec/manager/
 obj-y += usb/typec/common/
 obj-y += usb/typec/sm/sm5714/
 
+# spu signature verify
+obj-$(CONFIG_SPU_VERIFY) += spu_verify/
+
 # sensors driver
 obj-y += sensors/
 

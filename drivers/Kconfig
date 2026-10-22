@@ -272,6 +272,9 @@ source "drivers/usb/typec/manager/Kconfig"
 source "drivers/usb/typec/common/Kconfig"
 source "drivers/usb/typec/sm/sm5714/Kconfig"
 
+# spu signature verify
+source "drivers/spu_verify/Kconfig"
+
 # sensors driver
 source "drivers/sensors/Kconfig"
 
