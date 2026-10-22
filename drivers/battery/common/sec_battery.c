@@ -1154,7 +1154,11 @@ int sec_bat_set_charge(void * data, int chg_mode)
 	struct sec_battery_info *battery = data;
 	union power_supply_propval val = {0, };
 	ktime_t current_time = {0, };
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(5, 10, 0)
+	struct timespec64 ts = {0, };
+#else
 	struct timespec ts = {0, };
+#endif
 
 	battery->charger_mode = chg_mode;
 	pr_info("%s set %s mode\n", __func__, sec_bat_charge_mode_str[chg_mode]);
@@ -1163,8 +1167,11 @@ int sec_bat_set_charge(void * data, int chg_mode)
 	psy_do_property(battery->pdata->charger_name, set,
 		POWER_SUPPLY_PROP_STATUS, val);
 	current_time = ktime_get_boottime();
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(5, 10, 0)
+	ts = ktime_to_timespec64(current_time);
+#else
 	ts = ktime_to_timespec(current_time);
-
+#endif
 	if (chg_mode == SEC_BAT_CHG_MODE_CHARGING) {
 		/*Reset charging start time only in initial charging start */
 		if (battery->charging_start_time == 0) {
@@ -1523,7 +1530,7 @@ ovp_uvlo_check_error:
 static bool sec_bat_ovp_uvlo_result(
 		struct sec_battery_info *battery, int health)
 {
-	if (health == POWER_SUPPLY_HEALTH_DC_ERR) {
+	if (health == POWER_SUPPLY_EXT_HEALTH_DC_ERR) {
 		dev_info(battery->dev,
 			"%s: DC err (%d)\n",
 			__func__, health);
@@ -1594,7 +1601,7 @@ static bool sec_bat_ovp_uvlo(struct sec_battery_info *battery)
 	if (battery->health != POWER_SUPPLY_HEALTH_GOOD &&
 		battery->health != POWER_SUPPLY_HEALTH_OVERVOLTAGE &&
 		battery->health != POWER_SUPPLY_HEALTH_UNDERVOLTAGE &&
-		battery->health != POWER_SUPPLY_HEALTH_DC_ERR) {
+		battery->health != POWER_SUPPLY_EXT_HEALTH_DC_ERR) {
 		dev_dbg(battery->dev, "%s: No need to check\n", __func__);
 		return false;
 	}
@@ -2109,7 +2116,11 @@ static void sec_bat_do_test_function(
 static bool sec_bat_time_management(
 				struct sec_battery_info *battery)
 {
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(5, 10, 0)
+	struct timespec64 ts = {0, };
+#else
 	struct timespec ts = {0, };
+#endif
 	unsigned long charging_time;
 
 	if (battery->charging_start_time == 0 || !battery->safety_timer_set) {
@@ -2118,7 +2129,11 @@ static bool sec_bat_time_management(
 		return true;
 	}
 
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(5, 10, 0)
+	ts = ktime_to_timespec64(ktime_get_boottime());
+#else
 	get_monotonic_boottime(&ts);
+#endif
 
 	if (ts.tv_sec >= battery->charging_start_time) {
 		charging_time = ts.tv_sec - battery->charging_start_time;
@@ -3112,11 +3127,18 @@ bool sec_bat_hv_wc_normal_mode_check(struct sec_battery_info *battery)
 static void sec_bat_handle_tx_misalign(
 		struct sec_battery_info *battery, bool trigger_misalign)
 {
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(5, 10, 0)
+	struct timespec64 ts = {0, };
+#else
 	struct timespec ts = {0, };
-
+#endif
 	if (trigger_misalign) {
 		if (battery->tx_misalign_start_time == 0) {
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(5, 10, 0)
+			ts = ktime_to_timespec64(ktime_get_boottime());
+#else
 			ts = ktime_to_timespec(ktime_get_boottime());
+#endif
 			battery->tx_misalign_start_time = ts.tv_sec;
 		}
 		pr_info("@Tx_Mode %s: misalign is triggered!!(%d)\n", __func__, ++battery->tx_misalign_cnt);
@@ -3135,7 +3157,11 @@ static void sec_bat_handle_tx_misalign(
 			sec_wireless_set_tx_enable(battery, false);
 		}
 	} else if (battery->tx_retry_case & SEC_BAT_TX_RETRY_MISALIGN) {
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(5, 10, 0)
+		ts = ktime_to_timespec64(ktime_get_boottime());
+#else
 		get_monotonic_boottime(&ts);
+#endif
 		if (ts.tv_sec >= battery->tx_misalign_start_time) {
 			battery->tx_misalign_passed_time = ts.tv_sec - battery->tx_misalign_start_time;
 		} else {
@@ -3714,7 +3740,11 @@ static void sec_bat_misc_event_work(struct work_struct *work)
 static void sec_bat_calculate_safety_time(struct sec_battery_info *battery)
 {
 	unsigned long long expired_time = battery->expired_time;
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(5, 10, 0)
+	struct timespec64 ts = {0, };
+#else
 	struct timespec ts = {0, };
+#endif
 	int curr = 0;
 	int input_power = 0;
 	int charging_power = battery->charging_current *
@@ -3757,7 +3787,11 @@ static void sec_bat_calculate_safety_time(struct sec_battery_info *battery)
 		return;
 	}
 
-	get_monotonic_boottime(&ts);
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(5, 10, 0)
+		ts = ktime_to_timespec64(ktime_get_boottime());
+#else
+		get_monotonic_boottime(&ts);
+#endif
 
 	if (battery->prev_safety_time == 0) {
 		battery->prev_safety_time = ts.tv_sec;
@@ -3847,13 +3881,23 @@ static void sec_bat_monitor_work(struct work_struct *work)
 	struct sec_battery_info *battery =
 		container_of(work, struct sec_battery_info,
 		monitor_work.work);
+
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(5, 10, 0)
+	static struct timespec64 old_ts = {0, };
+	struct timespec64 c_ts = {0, };
+#else
 	static struct timespec old_ts = {0, };
 	struct timespec c_ts = {0, };
+#endif
 	union power_supply_propval val = {0, };
 	union power_supply_propval value = {0, };
 
 	dev_dbg(battery->dev, "%s: Start\n", __func__);
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(5, 10, 0)
+	c_ts = ktime_to_timespec64(ktime_get_boottime());
+#else
 	c_ts = ktime_to_timespec(ktime_get_boottime());
+#endif
 
 	mutex_lock(&battery->wclock);
 	if (!battery->wc_enable) {
@@ -3904,9 +3948,13 @@ static void sec_bat_monitor_work(struct work_struct *work)
 					sec_bat_cisd_check(battery);
 #endif
 					power_supply_changed(battery->psy_bat);
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(5, 10, 0)
+					pr_info("Skip monitor work(%llu, Vnow:%d(mV), SoC:%d(%%), Tbat:%d(0.1'C))\n",
+						c_ts.tv_sec - old_ts.tv_sec, battery->voltage_now, battery->capacity, battery->temperature);
+#else
 					pr_info("Skip monitor work(%ld, Vnow:%d(mV), SoC:%d(%%), Tbat:%d(0.1'C))\n",
 						c_ts.tv_sec - old_ts.tv_sec, battery->voltage_now, battery->capacity, battery->temperature);
-
+#endif
 				goto skip_monitor;
 			}
 		}
@@ -5250,7 +5298,7 @@ static int sec_bat_set_property(struct power_supply *psy,
 				battery->is_sysovlo = true;
 				battery->is_recharging = false;
 				battery->charging_mode = SEC_BATTERY_CHARGING_NONE;
-				battery->health = POWER_SUPPLY_HEALTH_VSYS_OVP;
+				battery->health = POWER_SUPPLY_EXT_HEALTH_VSYS_OVP;
 				sec_bat_set_current_event(battery, SEC_BAT_CURRENT_EVENT_VSYS_OVP, SEC_BAT_CURRENT_EVENT_VSYS_OVP);
 				sec_bat_set_charging_status(battery, POWER_SUPPLY_STATUS_NOT_CHARGING);
 #if defined(CONFIG_BATTERY_CISD)
@@ -5276,7 +5324,7 @@ static int sec_bat_set_property(struct power_supply *psy,
 				battery->is_vbatovlo = true;
 				battery->is_recharging = false;
 				battery->charging_mode = SEC_BATTERY_CHARGING_NONE;
-				battery->health = POWER_SUPPLY_HEALTH_VBAT_OVP;
+				battery->health = POWER_SUPPLY_EXT_HEALTH_VBAT_OVP;
 				sec_bat_set_current_event(battery, SEC_BAT_CURRENT_EVENT_VBAT_OVP, SEC_BAT_CURRENT_EVENT_VBAT_OVP);
 				sec_bat_set_charging_status(battery, POWER_SUPPLY_STATUS_NOT_CHARGING);
 
@@ -5592,7 +5640,7 @@ static int sec_bat_get_property(struct power_supply *psy,
 	}
 		break;
 	case POWER_SUPPLY_PROP_HEALTH:
-		if ((battery->health == POWER_SUPPLY_HEALTH_DC_ERR) && lpcharge)
+		if ((battery->health == POWER_SUPPLY_EXT_HEALTH_DC_ERR) && lpcharge)
 			val->intval = POWER_SUPPLY_HEALTH_GOOD;
 		else if (battery->health >= POWER_SUPPLY_HEALTH_MAX)
 			val->intval = POWER_SUPPLY_HEALTH_UNKNOWN;
@@ -5672,9 +5720,9 @@ static int sec_bat_get_property(struct power_supply *psy,
 #if defined(CONFIG_ENG_BATTERY_CONCEPT)
 			if (battery->status == POWER_SUPPLY_STATUS_FULL) {
 				if (battery->eng_not_full_status)
-					val->intval = battery->capacity;
+			val->intval = battery->capacity;
 				else
-					val->intval = 100;
+				val->intval = 100;
 			} else {
 				val->intval = battery->capacity;
 			}
