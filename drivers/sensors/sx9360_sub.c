@@ -25,7 +25,7 @@
 #include <linux/of_gpio.h>
 #include <linux/fs.h>
 #include <linux/uaccess.h>
-#include <linux/wakelock.h>
+#include <linux/pm_wakeup.h>
 #include <linux/interrupt.h>
 #include <linux/regulator/consumer.h>
 #include <linux/power_supply.h>
@@ -89,7 +89,7 @@ struct sx9360_p {
 	struct delayed_work init_work;
 	struct delayed_work irq_work;
 	struct delayed_work debug_work;
-	struct wake_lock grip_wake_lock;
+	struct wakeup_source *grip_ws;
 	struct mutex mode_mutex;
 	struct mutex read_mutex;
 #if IS_ENABLED(CONFIG_PDIC_NOTIFIER)
@@ -140,35 +140,28 @@ struct sx9360_p {
 static int sx9360_check_hallic_state(char *file_path, char hall_ic_status[])
 {
 	int iRet = 0;
-	mm_segment_t old_fs;
 	struct file *filep;
 	char hall_sysfs[5];
-
-	old_fs = get_fs();
-	set_fs(KERNEL_DS);
+	loff_t pos = 0;
 
 	filep = filp_open(file_path, O_RDONLY, 0440);
 	if (IS_ERR(filep)) {
 		iRet = PTR_ERR(filep);
 		GRIP_ERR("file open fail %d\n", iRet);
-		set_fs(old_fs);
 		return iRet;
 	}
 
-	iRet = filep->f_op->read(filep, hall_sysfs,
-				 sizeof(hall_sysfs), &filep->f_pos);
+	iRet = kernel_read(filep, hall_sysfs, sizeof(hall_sysfs), &pos);
 
 	if (iRet <= 0) {
 		GRIP_ERR("file read fail %d\n", iRet);
 		filp_close(filep, current->files);
-		set_fs(old_fs);
 		return -EIO;
 	} else {
 		strncpy(hall_ic_status, hall_sysfs, sizeof(hall_sysfs));
 	}
 
 	filp_close(filep, current->files);
-	set_fs(old_fs);
 
 	return iRet;
 }
@@ -1436,7 +1429,7 @@ static irqreturn_t sx9360_interrupt_thread(int irq, void *pdata)
 {
 	struct sx9360_p *data = pdata;
 
-	wake_lock_timeout(&data->grip_wake_lock, 3 * HZ);
+	__pm_wakeup_event(data->grip_ws, jiffies_to_msecs(3 * HZ));
 	schedule_delayed_work(&data->irq_work, msecs_to_jiffies(100));
 
 	return IRQ_HANDLED;
@@ -1683,8 +1676,7 @@ static int sx9360_probe(struct i2c_client *client,
 	if (ret < 0)
 		goto exit_input_init;
 
-	wake_lock_init(&data->grip_wake_lock,
-		       WAKE_LOCK_SUSPEND, "grip_wake_lock");
+	data->grip_ws = wakeup_source_register(&client->dev, "grip_wake_lock");
 	mutex_init(&data->mode_mutex);
 	mutex_init(&data->read_mutex);
 
@@ -1761,7 +1753,7 @@ exit_setup_pin:
 exit_of_node:
 	mutex_destroy(&data->mode_mutex);
 	mutex_destroy(&data->read_mutex);
-	wake_lock_destroy(&data->grip_wake_lock);
+	wakeup_source_unregister(data->grip_ws);
 	sysfs_remove_group(&data->input->dev.kobj, &sx9360_attribute_group);
 	sensors_remove_symlink(data->input);
 	input_unregister_device(data->input);
@@ -1789,7 +1781,7 @@ static int sx9360_remove(struct i2c_client *client)
 	free_irq(data->irq, data);
 	gpio_free(data->gpio_nirq);
 
-	wake_lock_destroy(&data->grip_wake_lock);
+	wakeup_source_unregister(data->grip_ws);
 	sensors_unregister(data->factory_device, sensor_attrs);
 	sensors_remove_symlink(data->input);
 	sysfs_remove_group(&data->input->dev.kobj, &sx9360_attribute_group);

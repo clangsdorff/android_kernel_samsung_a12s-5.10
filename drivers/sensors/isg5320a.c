@@ -59,8 +59,6 @@
 #define TYPE_BOOT  3
 #define TYPE_FORCE 4
 
-#define vfs_read(fp, buf, len, pos) kernel_read(fp, buf, len, pos)
-
 #pragma pack(1)
 struct direct_info {
 	char cmd;
@@ -147,22 +145,17 @@ struct isg5320a_data {
 static int check_hallic_state(char *file_path, unsigned char hall_ic_status[])
 {
 	int ret = 0;
-	mm_segment_t old_fs;
 	struct file *filep;
 	u8 hall_sysfs[5];
-
-	old_fs = get_fs();
-	set_fs(KERNEL_DS);
+	loff_t pos = 0;
 
 	filep = filp_open(file_path, O_RDONLY, 0666);
 	if (IS_ERR(filep)) {
 		ret = PTR_ERR(filep);
-		set_fs(old_fs);
 		goto exit;
 	}
 
-	ret = vfs_read(filep, hall_sysfs, sizeof(hall_sysfs),
-		       &filep->f_pos);
+	ret = kernel_read(filep, hall_sysfs, sizeof(hall_sysfs), &pos);
 
 	if (ret != sizeof(hall_sysfs))
 		ret = -EIO;
@@ -170,7 +163,6 @@ static int check_hallic_state(char *file_path, unsigned char hall_ic_status[])
 		strncpy(hall_ic_status, hall_sysfs, sizeof(hall_sysfs));
 
 	filp_close(filep, current->files);
-	set_fs(old_fs);
 
 exit:
 	return ret;
@@ -383,27 +375,22 @@ static int isg5320a_setup_reg(struct isg5320a_data *data)
 	uint8_t *file_data;
 	struct file *fp = NULL;
 	loff_t pos;
-	mm_segment_t old_fs = { 0 };
 	u8 addr = 0;
 	u8 val = 0;
-
-	old_fs = get_fs();
-	set_fs(KERNEL_DS);
 
 	fp = filp_open("/sdcard/isg5320a.reg", O_RDONLY, 0);
 	if (IS_ERR(fp)) {
 		pr_err("%s %s - file not exist:%ld\n", ISG5320A_TAG, __func__,
 		       PTR_ERR(fp));
-		set_fs(old_fs);
 		return -1;
 	}
 
-	file_size = fp->f_path.dentry->d_inode->i_size;
+	file_size = i_size_read(file_inode(fp));
 	pr_info("%s %s - size of the file : %ld(bytes)\n", ISG5320A_TAG,
 		__func__, file_size);
 	file_data = vzalloc(file_size);
 	pos = 0;
-	ret = vfs_read(fp, (char __user *)file_data, file_size, &pos);
+	ret = kernel_read(fp, file_data, file_size, &pos);
 	if (ret != file_size) {
 		pr_err("%s %s - failed to read file (ret = %d)\n", ISG5320A_TAG,
 		       __func__, ret);
@@ -413,7 +400,6 @@ static int isg5320a_setup_reg(struct isg5320a_data *data)
 	}
 
 	filp_close(fp, current->files);
-	set_fs(old_fs);
 
 	for (i = 0; i < file_size; i++) {
 		if (file_data[i] == 'W') {

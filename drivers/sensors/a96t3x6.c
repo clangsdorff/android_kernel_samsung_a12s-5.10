@@ -17,6 +17,7 @@
 
 #include <linux/delay.h>
 #include <linux/firmware.h>
+#include <linux/fs.h>
 #include <linux/gpio.h>
 #include <linux/i2c.h>
 #include <linux/init.h>
@@ -29,7 +30,7 @@
 #include <linux/slab.h>
 #include <linux/uaccess.h>
 #include <linux/io.h>
-#include <linux/wakelock.h>
+#include <linux/pm_wakeup.h>
 #include <asm/unaligned.h>
 #include <linux/regulator/consumer.h>
 #include <linux/sec_class.h>
@@ -71,7 +72,7 @@ struct a96t3x6_data {
 	char phys[32];
 	long firm_size;
 	int irq;
-	struct wake_lock grip_wake_lock;
+	struct wakeup_source *grip_ws;
 	u16 grip_p_thd;
 	u16 grip_r_thd;
 	u16 grip_n_thd;
@@ -615,21 +616,16 @@ static int a96t3x6_get_hallic_state(char *file_path)
 	char hall_buf[6];
 	int ret = -ENODEV;
 	int hall_state = -1;
-	mm_segment_t old_fs;
 	struct file *filep;
+	loff_t pos = 0;
 
 	memset(hall_buf, 0, sizeof(hall_buf));
-	old_fs = get_fs();
-	set_fs(KERNEL_DS);
-
 	filep = filp_open(file_path, O_RDONLY, 0666);
 	if (IS_ERR(filep)) {
-		set_fs(old_fs);
 		return hall_state;
 	}
 
-	ret = filep->f_op->read(filep, hall_buf,
-		sizeof(hall_buf) - 1, &filep->f_pos);
+	ret = kernel_read(filep, hall_buf, sizeof(hall_buf) - 1, &pos);
 	if (ret != sizeof(hall_buf) - 1)
 		goto exit;
 
@@ -638,7 +634,6 @@ static int a96t3x6_get_hallic_state(char *file_path)
 
 exit:
 	filp_close(filep, current->files);
-	set_fs(old_fs);
 
 	return hall_state;
 }
@@ -815,7 +810,7 @@ static irqreturn_t a96t3x6_interrupt(int irq, void *dev_id)
 	u8 grip_press_2ch = 0;
 #endif
 
-	wake_lock(&data->grip_wake_lock);
+	__pm_stay_awake(data->grip_ws);
 
 	ret = a96t3x6_i2c_read(client, REG_BTNSTATUS, &buf, 1);
 	if (ret < 0) {
@@ -829,7 +824,7 @@ static irqreturn_t a96t3x6_interrupt(int irq, void *dev_id)
 		}
 		if (retry < 0) {
 			a96t3x6_reset(data);
-			wake_unlock(&data->grip_wake_lock);
+			__pm_relax(data->grip_ws);
 			return IRQ_HANDLED;
 		}
 	}
@@ -917,7 +912,7 @@ static irqreturn_t a96t3x6_interrupt(int irq, void *dev_id)
 	if (grip_data_2ch)
 		GRIP_INFO("2ch %s %x\n", grip_press_2ch ? "grip P" : "grip R", buf);
 #endif
-	wake_unlock(&data->grip_wake_lock);
+	__pm_relax(data->grip_ws);
 	return IRQ_HANDLED;
 }
 
@@ -1944,7 +1939,7 @@ static int a96t3x6_load_fw_kernel(struct a96t3x6_data *data)
 static int a96t3x6_load_fw(struct a96t3x6_data *data, u8 cmd)
 {
 	struct file *fp;
-	mm_segment_t old_fs;
+	loff_t pos = 0;
 	long fsize, nread;
 	int ret = 0;
 
@@ -1953,8 +1948,6 @@ static int a96t3x6_load_fw(struct a96t3x6_data *data, u8 cmd)
 		break;
 
 	case SDCARD:
-		old_fs = get_fs();
-		set_fs(get_ds());
 		fp = filp_open(TK_FW_PATH_SDCARD, O_RDONLY, 0400);
 		if (IS_ERR(fp)) {
 			GRIP_ERR("%s open error (%d)\n", TK_FW_PATH_SDCARD, (int)PTR_ERR(fp));
@@ -1962,7 +1955,7 @@ static int a96t3x6_load_fw(struct a96t3x6_data *data, u8 cmd)
 			goto fail_sdcard_open;
 		}
 
-		fsize = fp->f_path.dentry->d_inode->i_size;
+		fsize = i_size_read(file_inode(fp));
 		data->firm_data_ums = kzalloc((size_t)fsize, GFP_KERNEL);
 		if (!data->firm_data_ums) {
 			GRIP_ERR("fail to kzalloc for fw\n");
@@ -1970,15 +1963,13 @@ static int a96t3x6_load_fw(struct a96t3x6_data *data, u8 cmd)
 			goto fail_sdcard_kzalloc;
 		}
 
-		nread = vfs_read(fp,
-			(char __user *)data->firm_data_ums, fsize, &fp->f_pos);
+		nread = kernel_read(fp, data->firm_data_ums, fsize, &pos);
 		if (nread != fsize) {
-			GRIP_ERR("fail to vfs_read file\n");
+			GRIP_ERR("fail to kernel_read file\n");
 			ret = -EINVAL;
 			goto fail_sdcard_size;
 		}
 		filp_close(fp, current->files);
-		set_fs(old_fs);
 		data->firm_size = nread;
 		break;
 
@@ -1990,11 +1981,11 @@ static int a96t3x6_load_fw(struct a96t3x6_data *data, u8 cmd)
 	return ret;
 
 fail_sdcard_size:
-	kfree(&data->firm_data_ums);
+	kfree(data->firm_data_ums);
+	data->firm_data_ums = NULL;
 fail_sdcard_kzalloc:
 	filp_close(fp, current->files);
 fail_sdcard_open:
-	set_fs(old_fs);
 	return ret;
 }
 
@@ -3143,7 +3134,7 @@ static int a96t3x6_probe(struct i2c_client *client,
 #endif
 	data->motion = 0;
 
-	wake_lock_init(&data->grip_wake_lock, WAKE_LOCK_SUSPEND, "grip wake lock");
+	data->grip_ws = wakeup_source_register(&client->dev, "grip_wake_lock");
 
 	ret = a96t3x6_parse_dt(data, &client->dev);
 	if (ret) {
@@ -3322,7 +3313,7 @@ err_reg_input_dev:
 #endif
 pwr_config:
 err_config:
-	wake_lock_destroy(&data->grip_wake_lock);
+	wakeup_source_unregister(data->grip_ws);
 err_noti_input_alloc:
 err_input_alloc:
 	kfree(data);
@@ -3340,7 +3331,7 @@ static int a96t3x6_remove(struct i2c_client *client)
 
 	data->enabled = false;
 	device_init_wakeup(&client->dev, false);
-	wake_lock_destroy(&data->grip_wake_lock);
+	wakeup_source_unregister(data->grip_ws);
 	cancel_delayed_work_sync(&data->debug_work);
 #ifdef CONFIG_SENSORS_FW_VENDOR
 	cancel_delayed_work_sync(&data->firmware_work);
