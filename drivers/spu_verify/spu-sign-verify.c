@@ -54,7 +54,6 @@ static int calc_digest_from_image(const u8* data, const long size, u8 *digest) {
 	}
 
 	desc->tfm = tfm;
-	desc->flags = 0x0;
 
 	ret = crypto_shash_init(desc);
 	if(ret < 0) {
