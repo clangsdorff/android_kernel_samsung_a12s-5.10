@@ -5,6 +5,11 @@ SUBLEVEL = 236
 EXTRAVERSION =
 NAME = Dare mighty things
 
+# Export default configurations
+export TARGET_SOC="s5e3830"
+export PLATFORM_VERSION="14"
+export ANDROID_MAJOR_VERSION="u"
+
 # *DOCUMENTATION*
 # To see a list of typical targets execute "make help"
 # More info can be located in ./README
