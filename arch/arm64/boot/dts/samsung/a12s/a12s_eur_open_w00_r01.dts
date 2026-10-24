@@ -6877,6 +6877,62 @@
 		};
 	};
 
+	fragment@cpupm {
+		target-path = "/exynos-cpupm";
+
+		__overlay__ {
+
+			// stock 4.19 EL3 learns cluster/system power-down from the CPU_SUSPEND psci-index (0x80/0x100), 5.10 always sends 0x10000
+			cpd_cl1 {
+				entry-allowed = "";
+			};
+
+			sicd {
+				entry-allowed = "";
+			};
+		};
+	};
+
+	fragment@cpus {
+		target-path = "/cpus";
+
+		__overlay__ {
+			// stock 4.19 EL3 takes PSCI CPU_ON targets as cluster<<8|core, not the MT-shifted MPIDR
+
+			cpu@0000 {
+				reg = <0x00 0x00>;
+			};
+
+			cpu@0001 {
+				reg = <0x00 0x01>;
+			};
+
+			cpu@0002 {
+				reg = <0x00 0x02>;
+			};
+
+			cpu@0003 {
+				reg = <0x00 0x03>;
+			};
+
+			cpu@0004 {
+				reg = <0x00 0x100>;
+			};
+
+			cpu@0005 {
+				reg = <0x00 0x101>;
+			};
+
+			cpu@0006 {
+				reg = <0x00 0x102>;
+			};
+
+			cpu@0007 {
+				reg = <0x00 0x103>;
+			};
+		};
+	};
+
 	__fixups__ {
 		exynos_adc = "/fragment@smd/__overlay__/samsung_mobile_device/sec_thermistor@1:io-channels:0", "/fragment@smd/__overlay__/samsung_mobile_device/sec_thermistor@0:io-channels:0", "/fragment@smd/__overlay__/samsung_mobile_device/battery:io-channels:0", "/fragment@smd/__overlay__/samsung_mobile_device/battery:io-channels:8", "/fragment@12/__overlay__/aud3004x@07:io-channels:0", "/fragment@12/__overlay__/aud3004x@07:io-channels:8";
 		gpg1 = "/fragment@smd/__overlay__/samsung_mobile_device/fixed_regulator@0:gpio:0", "/fragment@smd/__overlay__/samsung_mobile_device/gw3x:goodix,gpio_reset:0", "/fragment@23/__overlay__/pn547@2B:pn547,ven-gpio:0", "/fragment@23/__overlay__/pn547@2B:pn547,firm-gpio:0", "/fragment@23/__overlay__/pn547@2B:pn547,nfc-det-gpio:0", "/fragment@42/__overlay__/ilitek_ili9882x@0:iliteck,lcdid1-gpio:0", "/fragment@42/__overlay__/novatek@1:novatek,lcdid1-gpio:0", "/fragment@42/__overlay__/synaptics_tcm@2:synaptics,lcdid1-gpio:0";
