@@ -28,7 +28,7 @@ fsck.erofs --extract="$TREE" --xattrs --preserve --overwrite "$A14_IMG"
         setfattr -n security.selinux -v u:object_r:vendor_configs_file:s0 "$TREE/$f"
     fi
 done
-grep -q 'nfc@1.2::INfc/default' "$TREE/etc/vintf/manifest_hce.xml"
+grep -q '<fqname>@1.2::INfc/default</fqname>' "$TREE/etc/vintf/manifest_hce.xml"
 
 rm -f "$OUT_IMG"
 UUID=$(dump.erofs -s "$A14_IMG" | awk '/Filesystem UUID/ {print $NF}')
