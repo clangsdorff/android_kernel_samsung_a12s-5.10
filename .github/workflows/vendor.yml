@@ -55,7 +55,7 @@ jobs:
         mkdir -p dist
         sudo env PATH="$PATH" CC="$ANDROID_NDK_LATEST_HOME/toolchains/llvm/prebuilt/linux-x86_64/bin/clang" \
           bash vendor/mkvendor_a12s.sh stock/a12s_vendor stock/vendor_a14.img "dist/$NAME.img"
-        sudo bash vendor/mkodm_a12s.sh stock/a12s_vendor stock/odm_a14.img dist/odm.img
+        sudo env PATH="$PATH" bash vendor/mkodm_a12s.sh stock/a12s_vendor stock/odm_a14.img dist/odm.img
         sudo chown "$(id -u):$(id -g)" "dist/$NAME.img" dist/odm.img
         (cd dist && zip -9 -q "$NAME.zip" "$NAME.img" odm.img && rm "$NAME.img" odm.img)
     - name: Upload
