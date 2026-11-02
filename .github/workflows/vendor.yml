@@ -31,14 +31,33 @@ jobs:
         unzip -q a14_stock_vendor.zip
         unzip -q a12s_stock_vendor.zip -d a12s_vendor
         sha256sum -c SHA256SUMS
+    - name: Fetch a12s odm NFC files
+      working-directory: stock/a12s_vendor
+      run: |
+        B=https://gitlab.com/SavedByLight/android_dump_samsung_a12s_bimary-D/-/raw/TP1A.220624.014
+        for s in hce hceese hcesim hcesimese; do
+          f="odm/etc/vintf/manifest_$s.xml"; echo "$f"
+          case $s in hce|hceese) p="nfc.hce nfc.hcef nfc";; *) p="nfc.hce nfc.hcef nfc.uicc nfc";; esac
+          case $s in *ese) p="$p nfc.ese";; esac
+          for x in $p; do echo "odm/etc/permissions/sku_$s/android.hardware.$x.xml"; done
+          echo "odm/etc/permissions/sku_$s/com.nxp.mifare.xml"
+        done > odm.list
+        echo odm/etc/vintf/manifest_disabled.xml >> odm.list
+        while read -r f; do
+          mkdir -p "$(dirname "$f")"
+          curl -sSfL --retry 5 --retry-delay 20 --retry-all-errors -o "$f" "$B/$f"
+        done < odm.list
+        rm odm.list
+        cat odm/etc/vintf/manifest_hce.xml odm/etc/vintf/manifest_disabled.xml
     - name: Build vendor
       run: |
         NAME=langsdorff@a12s-$(git rev-parse --short HEAD)_vendor
         mkdir -p dist
         sudo env PATH="$PATH" CC="$ANDROID_NDK_LATEST_HOME/toolchains/llvm/prebuilt/linux-x86_64/bin/clang" \
           bash vendor/mkvendor_a12s.sh stock/a12s_vendor stock/vendor_a14.img "dist/$NAME.img"
-        sudo chown "$(id -u):$(id -g)" "dist/$NAME.img"
-        (cd dist && zip -9 -q "$NAME.zip" "$NAME.img" && rm "$NAME.img")
+        sudo bash vendor/mkodm_a12s.sh stock/a12s_vendor stock/odm_a14.img dist/odm.img
+        sudo chown "$(id -u):$(id -g)" "dist/$NAME.img" dist/odm.img
+        (cd dist && zip -9 -q "$NAME.zip" "$NAME.img" odm.img && rm "$NAME.img" odm.img)
     - name: Upload
       uses: actions/upload-artifact@v7
       with:
