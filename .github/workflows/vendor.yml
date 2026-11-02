@@ -1,0 +1,46 @@
+name: a12s Vendor Build
+
+on:
+  push:
+    branches: [a12s-vendor]
+  workflow_dispatch:
+
+jobs:
+  Vendor:
+    runs-on: ubuntu-24.04
+
+    steps:
+    - name: Checkout
+      uses: actions/checkout@v6
+    - name: Checkout stock vendors
+      uses: actions/checkout@v6
+      with:
+        ref: a12s-vendor-stock
+        path: stock
+    - name: Install tools
+      run: |
+        sudo apt-get install -y attr patchelf zip unzip autoconf automake libtool pkg-config liblz4-dev uuid-dev zlib1g-dev
+        git clone --depth 1 -b v1.9.4 https://git.kernel.org/pub/scm/linux/kernel/git/xiang/erofs-utils.git /tmp/erofs-src
+        (cd /tmp/erofs-src && ./autogen.sh && ./configure --prefix="$HOME/erofs-utils" && make -j$(nproc) && make install)
+        echo "$HOME/erofs-utils/bin" >> "$GITHUB_PATH"
+    - name: Verify stock vendors
+      working-directory: stock
+      run: |
+        cat a14_stock_vendor.zip.[0-9][0-9] > a14_stock_vendor.zip
+        sha256sum -c SHA256SUMS --ignore-missing
+        unzip -q a14_stock_vendor.zip
+        unzip -q a12s_stock_vendor.zip -d a12s_vendor
+        sha256sum -c SHA256SUMS
+    - name: Build vendor
+      run: |
+        NAME=langsdorff@a12s-$(git rev-parse --short HEAD)_vendor
+        mkdir -p dist
+        sudo env PATH="$PATH" CC="$ANDROID_NDK_LATEST_HOME/toolchains/llvm/prebuilt/linux-x86_64/bin/clang" \
+          bash vendor/mkvendor_a12s.sh stock/a12s_vendor stock/vendor_a14.img "dist/$NAME.img"
+        sudo chown "$(id -u):$(id -g)" "dist/$NAME.img"
+        (cd dist && zip -9 -q "$NAME.zip" "$NAME.img" && rm "$NAME.img")
+    - name: Upload
+      uses: actions/upload-artifact@v7
+      with:
+        name: a12s-Vendor
+        path: dist/*_vendor.zip
