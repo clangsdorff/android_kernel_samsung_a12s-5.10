@@ -1,16 +1,17 @@
 #!/bin/bash
-# usage: sudo CC=<ndk clang> mkvendor_a12s.sh <a12s stock vendor files> <A14 stock vendor.img (erofs)> <out.img>
+# usage: sudo CC=<ndk clang> mkvendor_a12s.sh <a12s stock vendor files> <xcover5 stock vendor files> <A14 stock vendor.img (erofs)> <out.img>
 set -euo pipefail
 
-[ $# -eq 3 ] || { sed -n 2p "$0" >&2; exit 2; }
+[ $# -eq 4 ] || { sed -n 2p "$0" >&2; exit 2; }
 [ "$(id -u)" -eq 0 ] || { echo "run as root (xattrs)" >&2; exit 1; }
 for t in fsck.erofs mkfs.erofs dump.erofs setfattr getfattr readelf patchelf python3 "${CC:?CC is not set}"; do
     command -v "$t" >/dev/null || { echo "missing tool: $t" >&2; exit 1; }
 done
 
 A12S=$(realpath "$1")
-A14_IMG=$(realpath "$2")
-OUT_IMG=$(realpath -m "$3")
+XC5=$(realpath "$2")
+A14_IMG=$(realpath "$3")
+OUT_IMG=$(realpath -m "$4")
 KIT=$(dirname "$(realpath "$0")")
 
 WORK=$(mktemp -d /var/tmp/mkvendor_a12s.XXXX)
@@ -42,6 +43,51 @@ rm -rf "$TREE/etc/dpolicy" \
 
 # a12s partition layout: no vbmeta_system, vendor_dlkm, system_dlkm, init_boot or vendor_boot
 cat "$KIT/fstab.s5e3830" > "$TREE/etc/fstab.s5e3830"
+
+# a12s TEEGRIS cannot load the A14 KeyMint TA (no EVP_PKEY_get_raw_private_key), so KeyMint goes.
+# xcover5 (A14 era, Keymaster 4.0 HIDL) ships the a12s Keymaster TA byte for byte; its HAL and the
+# libs it was built with replace KeyMint. Only KeyMint used the A14 copies of those libs.
+# Gatekeeper and its TA come from xcover5 as well, as on the xcover5 vendor that booted on a12s.
+xc5() { install -D -m "$2" -o 0 -g "$3" "$XC5/$1" "$TREE/$1"; label "$4" "$TREE/$1"; }
+xc5_over() { [ -f "$TREE/$1" ]; cat "$XC5/$1" > "$TREE/$1"; }
+rm -f "$TREE/bin/hw/android.hardware.security.keymint-service" \
+      "$TREE/etc/init/android.hardware.security.keymint-service.rc"
+xc5 bin/hw/android.hardware.keymaster@4.0-service 755 2000 hal_keymaster_default_exec
+xc5 etc/init/android.hardware.keymaster@4.0-service.rc 644 0 vendor_configs_file
+for l in libkeymaster4.so libkeymaster_helper.so libskeymaster4device.so; do
+    xc5 "lib64/$l" 644 0 vendor_file
+done
+for l in android.hardware.keymaster@3.0.so android.hardware.keymaster@4.0.so android.hardware.keymaster@4.1.so \
+         libkeymaster4support.so libkeymaster4_1support.so libkeymaster_messages.so libkeymaster_portable.so \
+         libpuresoftkeymasterdevice.so libsoft_attestation_cert.so libcppbor_external.so libcppcose_rkp.so \
+         android.hardware.gatekeeper@1.0.so hw/android.hardware.gatekeeper@1.0-impl.so hw/gatekeeper.s5e3830.so; do
+    xc5_over "lib64/$l"
+done
+for f in bin/hw/android.hardware.gatekeeper@1.0-service \
+         tee/00000000-0000-0000-0000-4b45594d5354 tee/00000000-0000-0000-0000-474154454b45; do
+    xc5_over "$f"
+done
+python3 - "$TREE/etc/vintf/manifest.xml" "$TREE/tmp" <<'PY'
+import re, sys
+s = open(sys.argv[1]).read()
+drop = ("android.hardware.security.keymint", "android.hardware.security.secureclock",
+        "android.hardware.security.sharedsecret", "vendor.samsung.hardware.keymint")
+blocks = re.findall(r"\n *<hal [^>]*>.*?</hal>", s, re.S)
+gone = [b for b in blocks if re.search(r"<name>(.*?)</name>", b).group(1) in drop]
+assert len(gone) == 6, len(gone)
+for b in gone:
+    s = s.replace(b, "")
+km = """    <hal format="hidl" override="true">
+        <name>android.hardware.keymaster</name>
+        <transport>hwbinder</transport>
+        <fqname>@4.0::IKeymasterDevice/default</fqname>
+    </hal>
+"""
+s = s.replace("</manifest>", km + "</manifest>", 1)
+open(sys.argv[2], "w").write(s)
+PY
+cat "$TREE/tmp" > "$TREE/etc/vintf/manifest.xml"
+rm "$TREE/tmp"
 
 # a12s Goodix side key: the a12s HIDL fingerprint@3.0 HAL and its TA replace the A14 AIDL HAL
 rm -f "$TREE/etc/vintf/manifest/vendor.samsung.hardware.biometrics.fingerprint-service.xml" \

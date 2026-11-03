@@ -30,6 +30,7 @@ jobs:
         sha256sum -c SHA256SUMS --ignore-missing
         unzip -q a14_stock_vendor.zip
         unzip -q a12s_stock_vendor.zip -d a12s_vendor
+        unzip -q xcover5_stock_vendor.zip -d xcover5_vendor
         sha256sum -c SHA256SUMS
     - name: Fetch a12s odm NFC files
       working-directory: stock/a12s_vendor
@@ -54,7 +55,7 @@ jobs:
         NAME=langsdorff@a12s-$(git rev-parse --short HEAD)_vendor
         mkdir -p dist
         sudo env PATH="$PATH" CC="$ANDROID_NDK_LATEST_HOME/toolchains/llvm/prebuilt/linux-x86_64/bin/clang" \
-          bash vendor/mkvendor_a12s.sh stock/a12s_vendor stock/vendor_a14.img "dist/$NAME.img"
+          bash vendor/mkvendor_a12s.sh stock/a12s_vendor stock/xcover5_vendor stock/vendor_a14.img "dist/$NAME.img"
         sudo env PATH="$PATH" bash vendor/mkodm_a12s.sh stock/a12s_vendor stock/odm_a14.img dist/odm.img
         sudo chown "$(id -u):$(id -g)" "dist/$NAME.img" dist/odm.img
         (cd dist && zip -9 -q "$NAME.zip" "$NAME.img" odm.img && rm "$NAME.img" odm.img)
