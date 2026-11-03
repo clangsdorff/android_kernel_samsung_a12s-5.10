@@ -43,9 +43,6 @@ rm -rf "$TREE/etc/dpolicy" \
 # a12s partition layout: no vbmeta_system, vendor_dlkm, system_dlkm, init_boot or vendor_boot
 cat "$KIT/fstab.s5e3830" > "$TREE/etc/fstab.s5e3830"
 
-# A14 KeyMint TA links EVP_PKEY_get_raw_private_key, which a12s TEEGRIS lacks
-a12s_over tee/00000000-0000-0000-0000-4b45594d5354 tee/00000000-0000-0000-0000-4b45594d5354
-
 # a12s Goodix side key: the a12s HIDL fingerprint@3.0 HAL and its TA replace the A14 AIDL HAL
 rm -f "$TREE/etc/vintf/manifest/vendor.samsung.hardware.biometrics.fingerprint-service.xml" \
       "$TREE/etc/init/vendor.samsung.hardware.biometrics.fingerprint-service.rc"
