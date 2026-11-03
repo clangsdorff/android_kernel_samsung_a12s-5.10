@@ -23,6 +23,11 @@ jobs:
         git clone --depth 1 -b v1.9.4 https://git.kernel.org/pub/scm/linux/kernel/git/xiang/erofs-utils.git /tmp/erofs-src
         (cd /tmp/erofs-src && ./autogen.sh && ./configure --prefix="$HOME/erofs-utils" && make -j$(nproc) && make install)
         echo "$HOME/erofs-utils/bin" >> "$GITHUB_PATH"
+        curl -sSfL -o /tmp/libsepol.tar.gz https://github.com/SELinuxProject/selinux/releases/download/3.11/libsepol-3.11.tar.gz
+        echo "79f3d2c88f44b7eb5cf54d9792e03232297e17f97a179163f2750099a00f164d  /tmp/libsepol.tar.gz" | sha256sum -c
+        tar xzf /tmp/libsepol.tar.gz -C /tmp
+        make -C /tmp/libsepol-3.11/src -j$(nproc) libsepol.a
+        gcc -O2 -Wall -Werror -I/tmp/libsepol-3.11/include -o "$HOME/sepatch" vendor/sepatch.c /tmp/libsepol-3.11/src/libsepol.a
     - name: Verify stock vendors
       working-directory: stock
       run: |
@@ -56,7 +61,7 @@ jobs:
         mkdir -p dist
         sudo env PATH="$PATH" CC="$ANDROID_NDK_LATEST_HOME/toolchains/llvm/prebuilt/linux-x86_64/bin/clang" \
           bash vendor/mkvendor_a12s.sh stock/a12s_vendor stock/xcover5_vendor stock/vendor_a14.img "dist/$NAME.img"
-        sudo env PATH="$PATH" bash vendor/mkodm_a12s.sh stock/a12s_vendor stock/odm_a14.img dist/odm.img
+        sudo env PATH="$PATH" SEPATCH="$HOME/sepatch" bash vendor/mkodm_a12s.sh stock/a12s_vendor stock/odm_a14.img dist/odm.img
         sudo chown "$(id -u):$(id -g)" "dist/$NAME.img" dist/odm.img
         (cd dist && zip -9 -q "$NAME.zip" "$NAME.img" odm.img && rm "$NAME.img" odm.img)
     - name: Upload
