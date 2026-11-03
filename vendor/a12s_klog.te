@@ -1,6 +1,0 @@
-# a12s_klog: logcat started by init as u:r:init:s0, writing to /cache
-allow init logcat_exec file getattr open read map execute execute_no_trans
-allow init logdr_socket sock_file write
-allow init logd unix_stream_socket connectto
-allow init cache_file dir search write add_name remove_name
-allow init cache_file file create open write append getattr rename unlink
