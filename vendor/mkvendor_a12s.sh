@@ -150,7 +150,11 @@ find "$TREE/firmware/wifi" -type f -exec chmod 644 {} +
 
 # A14 camera HAL only knows A14 sensors; the a12s HAL, its plugins, DDK, RTA and setfiles are taken whole.
 # The A14 HWL loads the legacy module as camera.<ro.hardware>.
-a12s_over lib64/hw/camera.exynos850.so lib64/hw/camera.s5e3830.so
+# The A14 HWL camera_module_t has two more hooks before set_callbacks; camera_shim.c re-lays the a12s HMI.
+a12s lib64/hw/camera.exynos850.so 644 0 vendor_file
+"$CC" --target=aarch64-linux-android30 -shared -fPIC -O2 -Wall -Werror -Wl,-soname,camera.s5e3830.so \
+    -o "$WORK/camera.s5e3830.so" "$KIT/camera_shim.c"
+cat "$WORK/camera.s5e3830.so" > "$TREE/lib64/hw/camera.s5e3830.so"
 for l in libexynoscamera3.so libexynoscamera_plugin.so libexynoscamera_plugin_utils.so libremosaic_wrapper.so \
          libsec2lsi_conversion.so libexynoscamera_tdnr_plugin.so libmfb.so; do
     a12s_over "lib64/$l" "lib64/$l"
