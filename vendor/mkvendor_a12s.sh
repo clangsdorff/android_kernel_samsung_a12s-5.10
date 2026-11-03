@@ -67,6 +67,17 @@ for f in bin/hw/android.hardware.gatekeeper@1.0-service \
          tee/00000000-0000-0000-0000-4b45594d5354 tee/00000000-0000-0000-0000-474154454b45; do
     xc5_over "$f"
 done
+"$CC" --target=aarch64-linux-android30 -shared -fPIC -O2 -Wall -Werror -Wl,-soname,libcrypto_shim.so \
+    -o "$TREE/lib64/libcrypto_shim.so" "$KIT/crypto_shim.c"
+patchelf --add-needed libcrypto.so "$TREE/lib64/libcrypto_shim.so"
+chown 0:0 "$TREE/lib64/libcrypto_shim.so"; chmod 644 "$TREE/lib64/libcrypto_shim.so"
+label vendor_file "$TREE/lib64/libcrypto_shim.so"
+for l in libkeymaster_helper.so libkeymaster_portable.so libkeymaster4support.so libkeymaster4_1support.so \
+         libskeymaster4device.so; do
+    cp "$TREE/lib64/$l" "$WORK/$l"
+    patchelf --add-needed libcrypto_shim.so "$WORK/$l"
+    cat "$WORK/$l" > "$TREE/lib64/$l"
+done
 python3 - "$TREE/etc/vintf/manifest.xml" "$TREE/tmp" <<'PY'
 import re, sys
 s = open(sys.argv[1]).read()
