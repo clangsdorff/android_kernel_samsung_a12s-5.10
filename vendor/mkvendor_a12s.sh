@@ -43,6 +43,22 @@ rm -rf "$TREE/etc/dpolicy" \
 # a12s partition layout: no vbmeta_system, vendor_dlkm, system_dlkm, init_boot or vendor_boot
 cat "$KIT/fstab.s5e3830" > "$TREE/etc/fstab.s5e3830"
 
+# Debug: /data never mounts, so adb and tombstones are gone; logcat goes to /cache for TWRP.
+# The odm policy gets the matching rules (a12s_klog.te).
+cat > "$TREE/etc/init/a12s_klog.rc" <<'EOF'
+on post-fs
+    start a12s_klog
+
+service a12s_klog /system/bin/logcat -b all -v threadtime -f /cache/a12s_klog.txt -r 8192 -n 2
+    user root
+    group root log
+    seclabel u:r:init:s0
+    disabled
+    oneshot
+EOF
+chown 0:0 "$TREE/etc/init/a12s_klog.rc"; chmod 644 "$TREE/etc/init/a12s_klog.rc"
+label vendor_configs_file "$TREE/etc/init/a12s_klog.rc"
+
 # a12s Goodix side key: the a12s HIDL fingerprint@3.0 HAL and its TA replace the A14 AIDL HAL
 rm -f "$TREE/etc/vintf/manifest/vendor.samsung.hardware.biometrics.fingerprint-service.xml" \
       "$TREE/etc/init/vendor.samsung.hardware.biometrics.fingerprint-service.rc"
