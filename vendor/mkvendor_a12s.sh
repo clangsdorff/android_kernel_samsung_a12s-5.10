@@ -134,6 +134,20 @@ a12s etc/libnfc-nxp.conf 644 0 vendor_configs_file
 a12s etc/nfc/libnfc-nxp_RF.conf 644 0 vendor_configs_file
 a12s firmware/nfc/libpn557_fw.so 644 0 vendor_fw_file
 
+# A14 calliope firmware data aborts on the a12s abox driver; the a12s firmware and topology go back
+for f in calliope_sram.bin calliope_dram.bin calliope_sram_2.bin calliope_dram_2.bin abox_tplg.bin abox_tplg.conf; do
+    a12s_over "firmware/$f" "firmware/$f"
+done
+
+# The kernel refuses the legacy ../etc/wifi firmware name and has no lnk_file read on vendor_fw_file,
+# so the WLBT set is copied to /vendor/firmware/wifi as on xcover5
+[ ! -e "$TREE/firmware/wifi" ]
+cp -a "$TREE/etc/wifi" "$TREE/firmware/wifi"
+find "$TREE/firmware/wifi" -exec chown 0:0 {} + \
+    -exec setfattr -n security.selinux -v u:object_r:vendor_fw_file:s0 {} +
+find "$TREE/firmware/wifi" -type d -exec chmod 755 {} +
+find "$TREE/firmware/wifi" -type f -exec chmod 644 {} +
+
 # A14 camera HAL only knows A14 sensors; the a12s HAL, its plugins, DDK, RTA and setfiles are taken whole.
 # The A14 HWL loads the legacy module as camera.<ro.hardware>.
 a12s_over lib64/hw/camera.exynos850.so lib64/hw/camera.s5e3830.so
