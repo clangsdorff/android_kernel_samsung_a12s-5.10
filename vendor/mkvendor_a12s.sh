@@ -137,7 +137,7 @@ find "$TREE/firmware/wifi" -type f -exec chmod 644 {} +
 # The A14 HWL camera_module_t has two more hooks before set_callbacks; camera_shim.c re-lays the a12s HMI.
 a12s lib64/hw/camera.exynos850.so 644 0 vendor_file
 "$CC" --target=aarch64-linux-android30 -shared -fPIC -O2 -Wall -Werror -Wl,-soname,camera.s5e3830.so \
-    -o "$WORK/camera.s5e3830.so" "$KIT/camera_shim.c"
+    -o "$WORK/camera.s5e3830.so" "$KIT/camera_shim.c" -llog
 cat "$WORK/camera.s5e3830.so" > "$TREE/lib64/hw/camera.s5e3830.so"
 for l in libexynoscamera3.so libexynoscamera_plugin.so libexynoscamera_plugin_utils.so libremosaic_wrapper.so \
          libsec2lsi_conversion.so libexynoscamera_tdnr_plugin.so libmfb.so; do

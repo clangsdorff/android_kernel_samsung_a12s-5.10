@@ -1,4 +1,5 @@
 /* camera_module_t of the a12s legacy HAL (0x168) laid out as the A14 HWL expects (0x188) */
+#include <android/log.h>
 #include <dlfcn.h>
 #include <string.h>
 
@@ -48,14 +49,24 @@ struct stream_config {
 /* camera3_device_ops: 10 hooks + reserved[8], copied with two spare slots */
 #define OPS_SLOTS 20
 #define OPS_CONFIGURE_STREAMS 1
+#define DEVICE_CLOSE 112
 #define DEVICE_OPS 120
 
 typedef int (*configure_streams_t)(void *dev, struct stream_config *cfg);
 typedef int (*open_t)(const void *module, const char *id, void **dev);
+typedef int (*close_t)(void *dev);
 
 static const void *(*hal_methods)[1];
 static configure_streams_t hal_configure_streams;
+static close_t hal_close;
 static void *shim_ops[OPS_SLOTS];
+
+static int shim_close(void *dev)
+{
+    int ret = hal_close(dev);
+    __android_log_print(ANDROID_LOG_INFO, "camera_shim", "close %p ret %d", dev, ret);
+    return ret;
+}
 
 static int shim_configure_streams(void *dev, struct stream_config *cfg)
 {
@@ -80,6 +91,11 @@ static int shim_open(const void *module, const char *id, void **dev)
         shim_ops[OPS_CONFIGURE_STREAMS] = (void *)shim_configure_streams;
     }
     *ops = shim_ops;
+    close_t *close = (close_t *)((char *)*dev + DEVICE_CLOSE);
+    if (!hal_close)
+        hal_close = *close;
+    *close = shim_close;
+    __android_log_print(ANDROID_LOG_INFO, "camera_shim", "open %s %p", id, *dev);
     return 0;
 }
 
