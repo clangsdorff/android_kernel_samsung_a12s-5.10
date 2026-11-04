@@ -34,6 +34,57 @@ _Static_assert(sizeof(struct a14_module) == 0x188, "A14 HMI");
 
 __attribute__((visibility("default"))) struct a14_module HMI;
 
+/* a12s HAL reads the Samsung stream option at +0x38; the A14 HWL keeps it in bits 16+ of +0x50 */
+#define A12S_STREAM_OPTION 0x38
+#define A14_STREAM_OPTION 0x52
+
+struct stream_config {
+    unsigned int num_streams;
+    char **streams;
+    unsigned int operation_mode;
+    const void *session_parameters;
+};
+
+/* camera3_device_ops: 10 hooks + reserved[8], copied with two spare slots */
+#define OPS_SLOTS 20
+#define OPS_CONFIGURE_STREAMS 1
+#define DEVICE_OPS 120
+
+typedef int (*configure_streams_t)(void *dev, struct stream_config *cfg);
+typedef int (*open_t)(const void *module, const char *id, void **dev);
+
+static const void *(*hal_methods)[1];
+static configure_streams_t hal_configure_streams;
+static void *shim_ops[OPS_SLOTS];
+
+static int shim_configure_streams(void *dev, struct stream_config *cfg)
+{
+    for (unsigned int i = 0; cfg && i < cfg->num_streams; i++) {
+        char *s = cfg->streams[i];
+        int opt;
+        memcpy(&opt, s + A14_STREAM_OPTION, sizeof(opt));
+        memcpy(s + A12S_STREAM_OPTION, &opt, sizeof(opt));
+    }
+    return hal_configure_streams(dev, cfg);
+}
+
+static int shim_open(const void *module, const char *id, void **dev)
+{
+    int ret = ((open_t)(*hal_methods)[0])(module, id, dev);
+    if (ret || !*dev)
+        return ret;
+    void ***ops = (void ***)((char *)*dev + DEVICE_OPS);
+    if (!hal_configure_streams) {
+        memcpy(shim_ops, *ops, sizeof(shim_ops));
+        hal_configure_streams = (configure_streams_t)shim_ops[OPS_CONFIGURE_STREAMS];
+        shim_ops[OPS_CONFIGURE_STREAMS] = (void *)shim_configure_streams;
+    }
+    *ops = shim_ops;
+    return 0;
+}
+
+static const void *shim_methods[1] = { (const void *)shim_open };
+
 __attribute__((constructor)) static void camera_shim_init(void)
 {
     void *h = dlopen(A12S_HAL, RTLD_NOW);
@@ -43,6 +94,8 @@ __attribute__((constructor)) static void camera_shim_init(void)
     void *dso = HMI.common.dso;
     HMI.common = m->common;
     HMI.common.dso = dso;
+    hal_methods = m->common.methods;
+    HMI.common.methods = (void *)shim_methods;
     HMI.get_number_of_cameras = m->get_number_of_cameras;
     HMI.get_camera_info = m->get_camera_info;
     HMI.set_callbacks = m->set_callbacks;
