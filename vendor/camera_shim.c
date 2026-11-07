@@ -35,6 +35,9 @@ _Static_assert(sizeof(struct a14_module) == 0x188, "A14 HMI");
 
 __attribute__((visibility("default"))) struct a14_module HMI;
 
+/* a12s HAL reads the Samsung stream option at +0x38; the A14 HWL keeps it in bits 16+ of +0x50 */
+#define A12S_STREAM_OPTION 0x38
+#define A14_STREAM_OPTION 0x52
 
 struct stream_config {
     unsigned int num_streams;
@@ -67,6 +70,12 @@ static int shim_close(void *dev)
 
 static int shim_configure_streams(void *dev, struct stream_config *cfg)
 {
+    for (unsigned int i = 0; cfg && i < cfg->num_streams; i++) {
+        char *s = cfg->streams[i];
+        int opt;
+        memcpy(&opt, s + A14_STREAM_OPTION, sizeof(opt));
+        memcpy(s + A12S_STREAM_OPTION, &opt, sizeof(opt));
+    }
     return hal_configure_streams(dev, cfg);
 }
 
