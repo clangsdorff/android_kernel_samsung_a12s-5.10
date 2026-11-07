@@ -167,7 +167,7 @@ for pc in (0xf6bf4, 0xf838c, 0xf9874, 0x207564):
     struct.pack_into("<I", d, pc, bl(pc, NEW))
 open(p, "wb").write(d)
 PY
-patchelf --add-needed libui_shim.so "$WORK/libexynoscamera3.so"
+patchelf --replace-needed libion.so libui_shim.so "$WORK/libexynoscamera3.so"
 cat "$WORK/libexynoscamera3.so" > "$TREE/lib64/libexynoscamera3.so"
 
 save() {
