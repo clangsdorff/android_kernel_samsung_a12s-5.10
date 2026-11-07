@@ -167,8 +167,21 @@ for pc in (0xf6bf4, 0xf838c, 0xf9874, 0x207564):
     struct.pack_into("<I", d, pc, bl(pc, NEW))
 open(p, "wb").write(d)
 PY
-patchelf --replace-needed libion.so libui_shim.so "$WORK/libexynoscamera3.so"
+patchelf --add-needed libui_shim.so "$WORK/libexynoscamera3.so"
 cat "$WORK/libexynoscamera3.so" > "$TREE/lib64/libexynoscamera3.so"
+
+# In 5.10 /dev/ion is replaced by dma-buf heaps (/dev/dma_heap/system).
+# Stock libion.so still tries to open /dev/ion; replace it with a dma-heap shim.
+"$CC" --target=aarch64-linux-android30 -shared -fPIC -O2 -Wall -Werror -Wl,-soname,libion.so -Wl,-z,defs \
+    -o "$TREE/lib64/libion.so" "$KIT/ion_shim.c" -llog
+chown 0:0 "$TREE/lib64/libion.so"; chmod 644 "$TREE/lib64/libion.so"
+label vendor_file "$TREE/lib64/libion.so"
+if [ -f "$TREE/lib/libion.so" ]; then
+    "$CC" --target=armv7a-linux-androideabi30 -shared -fPIC -O2 -Wall -Werror -Wl,-soname,libion.so -Wl,-z,defs \
+        -o "$TREE/lib/libion.so" "$KIT/ion_shim.c" -llog
+    chown 0:0 "$TREE/lib/libion.so"; chmod 644 "$TREE/lib/libion.so"
+    label vendor_file "$TREE/lib/libion.so"
+fi
 
 save() {
     cat "$TREE/tmp" > "$TREE/$1"
