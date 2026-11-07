@@ -30,9 +30,11 @@ typedef int ion_user_handle_t;
 __attribute__((visibility("default")))
 int ion_open(void)
 {
-    int fd = open("/dev/dma_heap/system", O_RDWR | O_CLOEXEC);
+    int fd = open("/dev/dma_heap/system", O_RDONLY | O_CLOEXEC);
+    if (fd < 0)
+        fd = open("/dev/dma_heap/camera", O_RDONLY | O_CLOEXEC);
     if (fd < 0) {
-        ALOGE("open /dev/dma_heap/system failed: %s", strerror(errno));
+        ALOGE("open /dev/dma_heap failed: %s", strerror(errno));
         return -errno;
     }
     ALOGI("ion_open() -> fd %d", fd);
