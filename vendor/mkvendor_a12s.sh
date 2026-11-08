@@ -169,6 +169,15 @@ for pc in (0xf6bf4, 0xf838c, 0xf9874, 0x207564):
 open(p, "wb").write(d)
 PY
 patchelf --add-needed libui_shim.so "$WORK/libexynoscamera3.so"
+# The a12s HAL inlines the JPEG encoder setters; A14 libhwjpeg moved width/height 4 bytes down, xcover5 did not.
+xc5 lib64/libgiantmscl.so 644 0 vendor_file
+cp "$XC5/lib64/libhwjpeg.so" "$TREE/lib64/libhwjpeg_a12s.so"
+patchelf --set-soname libhwjpeg_a12s.so "$TREE/lib64/libhwjpeg_a12s.so"
+own_lib lib64/libhwjpeg_a12s.so vendor_file
+cp "$TREE/lib64/hw/camera.exynos850.so" "$WORK/camera.exynos850.so"
+patchelf --replace-needed libhwjpeg.so libhwjpeg_a12s.so "$WORK/libexynoscamera3.so"
+patchelf --replace-needed libhwjpeg.so libhwjpeg_a12s.so "$WORK/camera.exynos850.so"
+cat "$WORK/camera.exynos850.so" > "$TREE/lib64/hw/camera.exynos850.so"
 cat "$WORK/libexynoscamera3.so" > "$TREE/lib64/libexynoscamera3.so"
 
 # Stock libion.so only knows /dev/ion, which this kernel does not have; the shim allocates from dma-buf heaps.
