@@ -172,6 +172,16 @@ patchelf --add-needed libui_shim.so "$WORK/libexynoscamera3.so"
 # The a12s HAL inlines the JPEG encoder setters; A14 libhwjpeg moved width/height 4 bytes down, xcover5 did not.
 xc5 lib64/libgiantmscl.so 644 0 vendor_file
 cp "$XC5/lib64/libhwjpeg.so" "$TREE/lib64/libhwjpeg_a12s.so"
+# Its encoder is 8 bytes larger than the HAL allocates: encode() zeroes the last appinfo slot, the pipe's debug buffer pointer.
+python3 - "$TREE/lib64/libhwjpeg_a12s.so" <<'PY'
+import sys
+p = sys.argv[1]
+d = bytearray(open(p, "rb").read())
+for off, old in ((0x11b50, "df1603f9"), (0x11c18, "ff1603f9")):
+    assert d[off:off + 4] == bytes.fromhex(old), hex(off)
+    d[off:off + 4] = bytes.fromhex("1f2003d5")
+open(p, "wb").write(d)
+PY
 patchelf --set-soname libhwjpeg_a12s.so "$TREE/lib64/libhwjpeg_a12s.so"
 own_lib lib64/libhwjpeg_a12s.so vendor_file
 cp "$TREE/lib64/hw/camera.exynos850.so" "$WORK/camera.exynos850.so"
