@@ -1,5 +1,5 @@
-// In 5.10 /dev/ion is replaced by dma-buf heaps (/dev/dma_heap/system).
-// libion.so is rebuilt on top of /dev/dma_heap/system for legacy camera HAL callers.
+// This kernel has no /dev/ion; libion.so is rebuilt on dma-buf heaps for the legacy a12s camera HAL.
+// A "handle" is the dma-buf fd itself.
 #include <android/log.h>
 #include <errno.h>
 #include <fcntl.h>
@@ -14,7 +14,6 @@
 #define ALOGE(...) __android_log_print(ANDROID_LOG_ERROR, LOG_TAG, __VA_ARGS__)
 #define ALOGI(...) __android_log_print(ANDROID_LOG_INFO, LOG_TAG, __VA_ARGS__)
 
-#ifndef DMA_HEAP_IOC_MAGIC
 struct dma_heap_allocation_data {
     uint64_t len;
     uint32_t fd;
@@ -23,25 +22,24 @@ struct dma_heap_allocation_data {
 };
 #define DMA_HEAP_IOC_MAGIC 'H'
 #define DMA_HEAP_IOCTL_ALLOC _IOWR(DMA_HEAP_IOC_MAGIC, 0x0, struct dma_heap_allocation_data)
-#endif
 
 typedef int ion_user_handle_t;
 
-__attribute__((visibility("default")))
 int ion_open(void)
 {
+    // the system heap node is 0444, so it cannot be opened O_RDWR
     int fd = open("/dev/dma_heap/system", O_RDONLY | O_CLOEXEC);
     if (fd < 0)
         fd = open("/dev/dma_heap/camera", O_RDONLY | O_CLOEXEC);
     if (fd < 0) {
-        ALOGE("open /dev/dma_heap failed: %s", strerror(errno));
-        return -errno;
+        int err = errno;
+        ALOGE("open /dev/dma_heap failed: %s", strerror(err));
+        return -err;
     }
     ALOGI("ion_open() -> fd %d", fd);
     return fd;
 }
 
-__attribute__((visibility("default")))
 int ion_close(int fd)
 {
     ALOGI("ion_close(fd %d)", fd);
@@ -50,7 +48,6 @@ int ion_close(int fd)
     return 0;
 }
 
-__attribute__((visibility("default")))
 int ion_alloc_fd(int fd, size_t len, size_t align, unsigned int heap_mask, unsigned int flags, int *handle_fd)
 {
     (void)align;
@@ -62,19 +59,17 @@ int ion_alloc_fd(int fd, size_t len, size_t align, unsigned int heap_mask, unsig
     struct dma_heap_allocation_data data = {
         .len = (uint64_t)len,
         .fd_flags = O_RDWR | O_CLOEXEC,
-        .heap_flags = 0,
     };
-    int ret = ioctl(fd, DMA_HEAP_IOCTL_ALLOC, &data);
-    if (ret < 0) {
-        ALOGE("DMA_HEAP_IOCTL_ALLOC (%zu bytes) failed: %s", len, strerror(errno));
-        return -errno;
+    if (ioctl(fd, DMA_HEAP_IOCTL_ALLOC, &data) < 0) {
+        int err = errno;
+        ALOGE("DMA_HEAP_IOCTL_ALLOC (%zu bytes) failed: %s", len, strerror(err));
+        return -err;
     }
     *handle_fd = (int)data.fd;
     ALOGI("ion_alloc_fd(%zu) -> fd %d", len, *handle_fd);
     return 0;
 }
 
-__attribute__((visibility("default")))
 int ion_alloc(int fd, size_t len, size_t align, unsigned int heap_mask, unsigned int flags, ion_user_handle_t *handle)
 {
     int handle_fd = -1;
@@ -84,7 +79,6 @@ int ion_alloc(int fd, size_t len, size_t align, unsigned int heap_mask, unsigned
     return ret;
 }
 
-__attribute__((visibility("default")))
 int ion_free(int fd, ion_user_handle_t handle)
 {
     (void)fd;
@@ -93,7 +87,6 @@ int ion_free(int fd, ion_user_handle_t handle)
     return 0;
 }
 
-__attribute__((visibility("default")))
 int ion_sync_fd(int fd, int handle_fd)
 {
     (void)fd;
@@ -101,21 +94,18 @@ int ion_sync_fd(int fd, int handle_fd)
     return 0;
 }
 
-__attribute__((visibility("default")))
 int ion_is_legacy(int fd)
 {
     (void)fd;
     return 0;
 }
 
-__attribute__((visibility("default")))
 int ion_is_using_modular_heaps(int fd)
 {
     (void)fd;
     return 0;
 }
 
-__attribute__((visibility("default")))
 int ion_share(int fd, ion_user_handle_t handle, int *share_fd)
 {
     (void)fd;
@@ -125,7 +115,6 @@ int ion_share(int fd, ion_user_handle_t handle, int *share_fd)
     return *share_fd >= 0 ? 0 : -errno;
 }
 
-__attribute__((visibility("default")))
 int ion_import(int fd, int share_fd, ion_user_handle_t *handle)
 {
     (void)fd;
@@ -135,34 +124,37 @@ int ion_import(int fd, int share_fd, ion_user_handle_t *handle)
     return *handle >= 0 ? 0 : -errno;
 }
 
-__attribute__((visibility("default")))
 int ion_map(int fd, ion_user_handle_t handle, size_t length, int prot, int flags, off_t offset,
             unsigned char **ptr, int *map_fd)
 {
     (void)fd;
-    (void)flags;
-    (void)offset;
     if (!ptr || !map_fd || handle < 0)
         return -EINVAL;
-    void *p = mmap(NULL, length, prot, MAP_SHARED, handle, 0);
+    void *p = mmap(NULL, length, prot, flags, handle, offset);
     if (p == MAP_FAILED)
         return -errno;
+    // the caller owns map_fd and closes it separately from the handle
+    int dup_fd = dup(handle);
+    if (dup_fd < 0) {
+        int err = errno;
+        munmap(p, length);
+        return -err;
+    }
     *ptr = (unsigned char *)p;
-    *map_fd = handle;
+    *map_fd = dup_fd;
     return 0;
 }
 
-__attribute__((visibility("default")))
+// No heap list to report: a count of 1 would make callers parse an unfilled ion_heap_data.
 int ion_query_heap_cnt(int fd, int *cnt)
 {
     (void)fd;
     if (!cnt)
         return -EINVAL;
-    *cnt = 1;
+    *cnt = 0;
     return 0;
 }
 
-__attribute__((visibility("default")))
 int ion_query_get_heaps(int fd, int cnt, void *buffers)
 {
     (void)fd;
