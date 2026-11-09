@@ -166,18 +166,25 @@ bl = lambda pc, dst: 0x94000000 | (((dst - pc) >> 2) & 0x3ffffff)
 for pc in (0xf6bf4, 0xf838c, 0xf9874, 0x207564):
     assert struct.unpack_from("<I", d, pc)[0] == bl(pc, OLD), hex(pc)
     struct.pack_into("<I", d, pc, bl(pc, NEW))
+# the remosaic PP takes its client from libion ion_open(), a real fd
+ION_CLOSE = 0x284760
+assert d[ION_CLOSE:ION_CLOSE + 16] == bytes.fromhex("700000d0118a42f91042149120021fd6")
+for pc in (0x2781f0, 0x278674):
+    assert struct.unpack_from("<I", d, pc)[0] == bl(pc, OLD), hex(pc)
+    struct.pack_into("<I", d, pc, bl(pc, ION_CLOSE))
 open(p, "wb").write(d)
 PY
 patchelf --add-needed libui_shim.so "$WORK/libexynoscamera3.so"
 # The a12s HAL inlines the JPEG encoder setters; A14 libhwjpeg moved width/height 4 bytes down, xcover5 did not.
 xc5 lib64/libgiantmscl.so 644 0 vendor_file
 cp "$XC5/lib64/libhwjpeg.so" "$TREE/lib64/libhwjpeg_a12s.so"
-# Its encoder is 8 bytes larger than the HAL allocates: encode() zeroes the last appinfo slot, the pipe's debug buffer pointer.
+# Its encoder is 8 bytes larger than the HAL allocates: the constructor and encode() zero the last appinfo slot,
+# which is the pipe's debug buffer pointer or, for the JPEG node, past the end of a 1576 byte heap block.
 python3 - "$TREE/lib64/libhwjpeg_a12s.so" <<'PY'
 import sys
 p = sys.argv[1]
 d = bytearray(open(p, "rb").read())
-for off, old in ((0x11b50, "df1603f9"), (0x11c18, "ff1603f9")):
+for off, old in ((0x10fac, "7f1603f9"), (0x11b50, "df1603f9"), (0x11c18, "ff1603f9")):
     assert d[off:off + 4] == bytes.fromhex(old), hex(off)
     d[off:off + 4] = bytes.fromhex("1f2003d5")
 open(p, "wb").write(d)
