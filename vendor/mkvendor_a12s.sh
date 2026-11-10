@@ -214,6 +214,10 @@ grep -v '^$' "$hc" > "$TREE/tmp"
 cat "$TREE/tmp" > "$hc"
 rm "$TREE/tmp"
 
+# a12s has no ambient light chip on the sensorhub, CameraLightSensor uses this EV-Lux table
+install -D -m 644 -o 0 -g 0 "$KIT/ev_lux_map_config.xml" "$TREE/etc/ev_lux_map_config.xml"
+label vendor_configs_file "$TREE/etc/ev_lux_map_config.xml"
+
 save() {
     cat "$TREE/tmp" > "$TREE/$1"
     rm "$TREE/tmp"
