@@ -204,6 +204,16 @@ own_lib lib64/libion.so same_process_hal_file
 shim_cc armv7a-linux-androideabi30 libion.so "$TREE/lib/libion.so" -Wl,-z,defs "$KIT/ion_shim.c" -llog
 own_lib lib/libion.so same_process_hal_file
 
+# a12s has no proximity chip on the sensorhub, only the touch ear detect behind the Hover Proximity sensor.
+# The A14 multihal list has no inputvirtual subhal, a12s loads it like the stock hals.conf
+python3 "$KIT/proxhal_patch.py" "$TREE/lib64/sensors.inputvirtual.so" "$WORK/sensors.inputvirtual.so"
+cat "$WORK/sensors.inputvirtual.so" > "$TREE/lib64/sensors.inputvirtual.so"
+hc=$TREE/etc/sensors/hals.conf
+grep -q inputvirtual "$hc" || printf '\n/vendor/lib64/sensors.inputvirtual.so\n' >> "$hc"
+grep -v '^$' "$hc" > "$TREE/tmp"
+cat "$TREE/tmp" > "$hc"
+rm "$TREE/tmp"
+
 save() {
     cat "$TREE/tmp" > "$TREE/$1"
     rm "$TREE/tmp"
