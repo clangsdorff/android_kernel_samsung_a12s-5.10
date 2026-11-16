@@ -1,0 +1,65 @@
+name: a12s Kernel Build
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [xcover5]
+
+jobs:
+  Kernel:
+    runs-on: ubuntu-22.04
+    strategy:
+      fail-fast: false
+      matrix:
+        variant: [e, p]
+
+    steps:
+    - name: Checkout
+      uses: actions/checkout@v6
+      with:
+        fetch-depth: 0
+    - name: Install tools
+      run: |
+        sudo apt-get install -y pahole libelf-dev bc zip
+        git clone --depth=1 https://gitlab.com/tejas101k/clang-r450784d.git "$HOME/clang"
+        git clone --depth=1 https://github.com/osm0sis/AnyKernel3.git "$HOME/ak3"
+    - name: Build
+      run: |
+        export PATH="$HOME/clang/bin:$PATH" ARCH=arm64 LLVM=1 LLVM_IAS=1
+        export CROSS_COMPILE=aarch64-linux-gnu-
+        FRAG=
+        [ "${{ matrix.variant }}" = p ] && FRAG=permissive.config
+        SHA=$(git rev-parse --short HEAD)
+        ARGS=(O=out LOCALVERSION=-langsdorff-a12s-${SHA}${{ matrix.variant }} KBUILD_BUILD_USER=Langsdorff KBUILD_BUILD_HOST=langsdorff)
+        make "${ARGS[@]}" exynos850-a12snsxx_defconfig $FRAG
+        make -j$(nproc --all) "${ARGS[@]}" Image
+        echo "NAME=langsdorff@a12s-${SHA}${{ matrix.variant }}" >> "$GITHUB_ENV"
+    - name: Package
+      run: |
+        cd "$HOME/ak3"
+        rm -rf .git .github README.md modules patch ramdisk
+        cp "$GITHUB_WORKSPACE/out/arch/arm64/boot/Image" .
+        cat > anykernel.sh <<'AK'
+        properties() { '
+        kernel.string=langsdorff a12s kernel
+        do.devicecheck=0
+        do.modules=0
+        do.systemless=0
+        do.cleanup=1
+        do.cleanuponabort=0
+        '; }
+        BLOCK=boot;
+        IS_SLOT_DEVICE=0;
+        RAMDISK_COMPRESSION=auto;
+        PATCH_VBMETA_FLAG=auto;
+        . tools/ak3-core.sh;
+        split_boot;
+        flash_boot;
+        AK
+        sed -i 's/^        //' anykernel.sh
+        zip -r9 "$GITHUB_WORKSPACE/$NAME.zip" . -x '.*'
+    - name: Upload
+      uses: actions/upload-artifact@v7
+      with:
+        name: ${{ env.NAME }}
+        path: ${{ env.NAME }}.zip
