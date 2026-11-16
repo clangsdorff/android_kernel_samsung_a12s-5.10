@@ -20,25 +20,19 @@ jobs:
         fetch-depth: 0
     - name: Install tools
       run: |
-        sudo apt-get install -y pahole libelf-dev bc
+        sudo apt-get install -y pahole libelf-dev bc cpio lz4
         mkdir -p "$HOME/clang"
         curl -sSfL --retry 5 https://android.googlesource.com/platform/prebuilts/clang/host/linux-x86/+archive/84ee9eee62b035acb9a77176979feea20e3068e1/clang-r614150.tar.gz | tar -xz -C "$HOME/clang"
         "$HOME/clang/bin/clang" --version | head -1
     - name: Build
       run: |
-        export PATH="$HOME/clang/bin:$PATH" ARCH=arm64 LLVM=1 LLVM_IAS=1
-        export CROSS_COMPILE=aarch64-linux-gnu-
-        FRAG=
-        [ "${{ matrix.variant }}" = p ] && FRAG=permissive.config
-        SHA=$(git rev-parse --short HEAD)
-        ARGS=(O=out LOCALVERSION=-langsdorff-a12s-${SHA}${{ matrix.variant }} KBUILD_BUILD_USER=Langsdorff KBUILD_BUILD_HOST=langsdorff)
-        make "${ARGS[@]}" exynos850-a12snsxx_defconfig $FRAG
-        make -j$(nproc --all) "${ARGS[@]}" Image
-        MODE=enforcing
-        [ "${{ matrix.variant }}" = p ] && MODE=permissive
-        echo "NAME=langsdorff-a12s-${SHA}-${MODE}" >> "$GITHUB_ENV"
+        export PATH="$HOME/clang/bin:$PATH"
+        VARIANT=${{ matrix.variant }} bash kernel_build/build.sh
+        echo "NAME=$(basename kernel_build/langsdorff-a12s-*.tar .tar)" >> "$GITHUB_ENV"
     - name: Upload
       uses: actions/upload-artifact@v7
       with:
         name: ${{ env.NAME }}
-        path: out/arch/arm64/boot/Image
+        path: |
+          kernel_build/${{ env.NAME }}.tar
+          kernel_build/${{ env.NAME }}-boot.img
