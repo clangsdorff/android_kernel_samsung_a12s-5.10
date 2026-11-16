@@ -20,11 +20,10 @@ jobs:
         fetch-depth: 0
     - name: Install tools
       run: |
-        sudo apt-get install -y pahole libelf-dev bc zip
+        sudo apt-get install -y pahole libelf-dev bc
         mkdir -p "$HOME/clang"
         curl -sSfL --retry 5 https://android.googlesource.com/platform/prebuilts/clang/host/linux-x86/+archive/84ee9eee62b035acb9a77176979feea20e3068e1/clang-r614150.tar.gz | tar -xz -C "$HOME/clang"
         "$HOME/clang/bin/clang" --version | head -1
-        git clone --depth=1 https://github.com/osm0sis/AnyKernel3.git "$HOME/ak3"
     - name: Build
       run: |
         export PATH="$HOME/clang/bin:$PATH" ARCH=arm64 LLVM=1 LLVM_IAS=1
@@ -35,33 +34,11 @@ jobs:
         ARGS=(O=out LOCALVERSION=-langsdorff-a12s-${SHA}${{ matrix.variant }} KBUILD_BUILD_USER=Langsdorff KBUILD_BUILD_HOST=langsdorff)
         make "${ARGS[@]}" exynos850-a12snsxx_defconfig $FRAG
         make -j$(nproc --all) "${ARGS[@]}" Image
-        echo "NAME=langsdorff@a12s-${SHA}${{ matrix.variant }}" >> "$GITHUB_ENV"
-    - name: Package
-      run: |
-        cd "$HOME/ak3"
-        rm -rf .git .github README.md modules patch ramdisk
-        cp "$GITHUB_WORKSPACE/out/arch/arm64/boot/Image" .
-        cat > anykernel.sh <<'AK'
-        properties() { '
-        kernel.string=langsdorff a12s kernel
-        do.devicecheck=0
-        do.modules=0
-        do.systemless=0
-        do.cleanup=1
-        do.cleanuponabort=0
-        '; }
-        BLOCK=boot;
-        IS_SLOT_DEVICE=0;
-        RAMDISK_COMPRESSION=auto;
-        PATCH_VBMETA_FLAG=auto;
-        . tools/ak3-core.sh;
-        split_boot;
-        flash_boot;
-        AK
-        sed -i 's/^        //' anykernel.sh
-        zip -r9 "$GITHUB_WORKSPACE/$NAME.zip" . -x '.*'
+        MODE=enforcing
+        [ "${{ matrix.variant }}" = p ] && MODE=permissive
+        echo "NAME=langsdorff-a12s-${SHA}-${MODE}" >> "$GITHUB_ENV"
     - name: Upload
       uses: actions/upload-artifact@v7
       with:
         name: ${{ env.NAME }}
-        path: ${{ env.NAME }}.zip
+        path: out/arch/arm64/boot/Image
