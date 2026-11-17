@@ -27,7 +27,7 @@ export CROSS_COMPILE=aarch64-linux-gnu-
 ARGS=(O=out LOCALVERSION=-langsdorff-a12s-${SHA}${VARIANT} KBUILD_BUILD_USER=Langsdorff KBUILD_BUILD_HOST=langsdorff)
 
 make "${ARGS[@]}" exynos850-a12snsxx_defconfig $FRAG
-make -j$(nproc --all) "${ARGS[@]}" Image.gz dtbs
+make -j$(nproc --all) "${ARGS[@]}" Image dtbs
 
 rm -rf "$TMPDIR"
 mkdir -p "$RAMDISK_DIR"
@@ -47,7 +47,7 @@ python3 "$KB/mkdtboimg.py" create "$TMPDIR/dtbo.img" --page_size=2048 --version=
     "$OUTDIR/arch/arm64/boot/dts/samsung/a12s/a12s_eur_open_w00_r01.dtbo" --id=0 --rev=0 --custom0=0x1 --custom1=0x20
 
 python3 "$KB/mkbootimg/mkbootimg.py" --header_version 2 \
-    --kernel "$OUTDIR/arch/arm64/boot/Image.gz" \
+    --kernel "$OUTDIR/arch/arm64/boot/Image" \
     --ramdisk "$TMPDIR/ramdisk.cpio" \
     --dtb "$TMPDIR/dtb.img" \
     --base 0x10000000 --kernel_offset 0x00008000 --ramdisk_offset 0x01000000 \
