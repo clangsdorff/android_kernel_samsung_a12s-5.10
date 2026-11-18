@@ -1339,6 +1339,19 @@ static irqreturn_t syna_tcm_isr(int irq, void *data)
 
 	tcm_hcd->isr_pid = current->pid;
 
+	if (tcm_hcd->lp_state == LP_MODE) {
+		pm_wakeup_event(&tcm_hcd->pdev->dev, 1000);
+
+		/* wait for SPI/PM resume before reading from the bus */
+		retval = wait_for_completion_timeout(&tcm_hcd->resume_done,
+				msecs_to_jiffies(500));
+		if (retval == 0) {
+			input_err(true, tcm_hcd->pdev->dev.parent,
+				"%s: LPM: pm resume is not handled\n", __func__);
+			goto exit;
+		}
+	}
+
 	retval = tcm_hcd->read_message(tcm_hcd, NULL, 0);
 	if (retval < 0) {
 		if (tcm_hcd->sensor_type == TYPE_F35)

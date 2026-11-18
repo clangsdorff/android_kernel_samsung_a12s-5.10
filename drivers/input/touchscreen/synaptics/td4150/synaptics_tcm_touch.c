@@ -752,25 +752,6 @@ static void touch_report(void)
 
 	mutex_lock(&touch_hcd->report_mutex);
 
-	if (tcm_hcd->lp_state == LP_MODE) {
-		pm_wakeup_event(tcm_hcd->pdev->dev.parent, 1000);
-
-		/* waiting for blsp block resuming, if not occurs i2c error */
-		retval = wait_for_completion_interruptible_timeout(&tcm_hcd->resume_done, msecs_to_jiffies(500));
-		if (retval == 0) {
-			input_err(true, tcm_hcd->pdev->dev.parent, "%s: LPM: pm resume is not handled\n", __func__);
-			mutex_unlock(&touch_hcd->report_mutex);
-			return;
-		} else if (retval < 0) {
-			input_err(true, tcm_hcd->pdev->dev.parent, "%s: LPM: -ERESTARTSYS if interrupted, %d\n", __func__, retval);
-			mutex_unlock(&touch_hcd->report_mutex);
-			return;
-		}
-
-		input_dbg(true, tcm_hcd->pdev->dev.parent, "%s: run LPM interrupt handler, %d\n", __func__, retval);
-		/* run lpm interrupt handler */
-	}
-
 	retval = touch_parse_report();
 	if (retval < 0) {
 		input_err(true, tcm_hcd->pdev->dev.parent,
